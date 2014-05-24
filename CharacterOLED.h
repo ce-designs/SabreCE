@@ -1,3 +1,5 @@
+// functions for printing large characters added by CE-designs - 2014/15/05
+
 #ifndef CharacterOLED_h
 #define CharacterOLED_h
 
