@@ -2,7 +2,7 @@
 * GUI.cpp
 *
 * Created: 28-12-2013 17:02:16
-* Author: RRM Hartholt
+* Author: CE-Designs
 */
 
 #if (ARDUINO >= 100)
