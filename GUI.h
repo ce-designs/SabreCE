@@ -2,7 +2,7 @@
 * GUI.h
 *
 * Created: 28-12-2013 17:02:17
-* Author: RRM Hartholt
+* Author: CE-Designs
 */
 
 #if (ARDUINO >= 100)
