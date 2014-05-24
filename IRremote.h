@@ -10,6 +10,8 @@
  * Also influenced by http://zovirl.com/2008/11/12/building-a-universal-remote-with-an-arduino/
  *
  * JVC and Panasonic protocol added by Kristian Lauszus (Thanks to zenwheel and other people at the original blog post)
+ *
+ * Key codes added for Apple remotes (NEC protocol) by CE-Designs - 15/05/2014
  */
 
 #ifndef IRremote_h
@@ -50,7 +52,8 @@ public:
 
 
 
-// Decoded value for NEC when a repeat code is received
+// Key codes for Apple remotes (NEC) 
+// these are the first 7 bits of the third byte
 #define REPEAT 0xFFFFFFFF
 #define KEY_UP 0xA0
 #define KEY_DOWN 0x60
@@ -60,14 +63,6 @@ public:
 #define KEY_MENU 0x80
 #define KEY_PLAY_PAUSE 0xF4
 
-//#define REPEAT 0xFFFFFFFF
-//#define KEY_UP 0x77E150B9
-//#define KEY_DOWN 0x77E130B9
-//#define KEY_LEFT 0x77E190B9
-//#define KEY_RIGHT 0x77E160B9
-//#define KEY_CENTER 0x77E13AB9
-//#define KEY_MENU 0x77E1C0B9
-//#define KEY_PLAY_PAUSE 0x77E1FAB9
 
 // main class for receiving IR
 class IRrecv
