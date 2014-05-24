@@ -3,7 +3,7 @@
 * Sabre.h
 *
 * Created: 19-12-2013 23:05:30
-* Author: rrmhartholt
+* Author: CE-Designs
 */
 
 
