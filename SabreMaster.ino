@@ -1,3 +1,10 @@
+/*
+* SabreMaster
+*
+* Created: 19-12-2013 23:05:30
+* Author: CE-Designs
+*/
+
 #include "Sabre.h"
 #include "GUI.h"
 #include "Wire.h"
