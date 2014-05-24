@@ -2,7 +2,7 @@
 * Sabre.cpp
 *
 * Created: 19-12-2013 23:05:29
-* Author: rrmhartholt
+* Author: CE-Dsigns
 */
 
 #if (ARDUINO >= 100)
