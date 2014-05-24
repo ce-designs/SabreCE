@@ -3,6 +3,7 @@
 // Modified for 4-bit operation of the Winstar 16x2 Character OLED
 // By W. Earl for Adafruit - 6/30/12
 // Initialization sequence fixed by Technobly - 9/22/2013
+// functions for printing large characters added by CE-designs - 2014/15/05
 
 #include "CharacterOLED.h"
 
@@ -23,15 +24,15 @@
 //    N="0": 1-line display
 //    F="0": 5 x 8 dot character font
 // 3. Power turn off
-//    PWR=”0”
+//    PWR=ï¿½0ï¿½
 // 4. Display on/off control: D="0": Display off C="0": Cursor off B="0": Blinking off
 // 5. Entry mode set
 //    I/D="1": Increment by 1
 //    S="0": No shift
 // 6. Cursor/Display shift/Mode / Pwr
-//    S/C=”0”, R/L=”1”: Shifts cursor position to the right
-//    G/C=”0”: Character mode
-//    Pwr=”1”: Internal DCDC power on
+//    S/C=ï¿½0ï¿½, R/L=ï¿½1ï¿½: Shifts cursor position to the right
+//    G/C=ï¿½0ï¿½: Character mode
+//    Pwr=ï¿½1ï¿½: Internal DCDC power on
 //
 // Note, however, that resetting the Arduino doesn't reset the LCD, so we
 // can't assume that its in that state when a sketch starts (and the
