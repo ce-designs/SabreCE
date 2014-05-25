@@ -89,7 +89,9 @@ void Sabre::begin(bool DualMono, uint8_t F_crystal)
 		{
 			writeInputConfiguration(i);
 		}
-		EEPROM.write(EEPROM_FIRST_RUN, FIRST_RUN);		
+		writeDefaultAttenuation();
+		EEPROM.write(EEPROM_FIRST_RUN, FIRST_RUN);
+		
 	}
 	readInputConfiguration();
 	applyInputConfiguration(SelectedInput);
@@ -149,6 +151,9 @@ void Sabre::useDefaultSettings()
 		Config[i].SERIAL_DATA_MODE = I2S;
 		Config[i].SPDIF_ENABLE = useI2SorDSD;
 		Config[i].SPDIF_SOURCE = Data1;
+		//
+		DefaultAttenuation = DEFAULT_ATTNU;
+		Attenuation = DefaultAttenuation;
 	}
 }
 
