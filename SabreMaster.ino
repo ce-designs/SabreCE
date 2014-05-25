@@ -228,16 +228,16 @@ void setVolume(byte value)
 {
 	if (value == INCREASE)
 	{
-		if (dac.Attenuation < 99)
+		if (dac.Attenuation > 0)
 		{
-			dac.setVolume(dac.Attenuation += 1);			
+			dac.setVolume(dac.Attenuation -= 1);			
 		}
 	}
 	else
 	{
-		if (dac.Attenuation > 0)
+		if (dac.Attenuation < 99)
 		{
-			dac.setVolume(dac.Attenuation -= 1);
+			dac.setVolume(dac.Attenuation += 1);
 		}
 	}
 	gui.printLargeAttenuation(99 - dac.Attenuation, 13);
