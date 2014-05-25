@@ -26,9 +26,10 @@
 #define EEPROM_DEF_ATTNU 401
 #define EEPROM_FIRST_RUN 402
 
-#define FIRST_RUN 128 
+#define FIRST_RUN 128 		// 128 is just a flag for indicating that it's not the first run
 
-
+#define DEFAULT_ATTNU 49  	// 49 decibel attenuation by default
+	
 template <class T> int EEPROM_writeAnything(int ee, const T& value)
 {
 	const byte* p = (const byte*)(const void*)&value;
