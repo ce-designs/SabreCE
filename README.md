@@ -8,8 +8,8 @@ This repository contains:
   - A GUI library for displaying DAC settings, using a character OLED.
       (This library is developed to be used with the Sabre library)
   - A modified version of Ken shirrif's IR remote library.
-  - A modified version of Elco Jacob's OLEDfourbit library for interfacing a Newhaven OLED display (Rev.A).
-  - A modified version of Adafruit's characterOLED library for interfacing a Newhaven OLED display (Rev.C).\
+  - A modified version of Elco Jacob's OLEDfourbit library for interfacing a Newhaven OLED display (Rev.A). (Remove this         library when using a Rev.C display)
+  - A modified version of Adafruit's characterOLED library for interfacing a Newhaven OLED display (Rev.C).(Remove this          library when using a Rev.A display)
  
 To be added:
   - A DS1307 library for interfacing the DS1307 RTC.
