@@ -194,9 +194,10 @@ class Sabre
 		UseDPLLBandwidthSetting, MultiplyDPLLBandwidthBy128
 	};
 	
-	uint8_t Attenuation;	// hold the current attenuation (volume)
-	uint8_t SelectedInput;	// holds the current selected input
+	uint8_t Attenuation;		// hold the current attenuation (volume)
+	uint8_t SelectedInput;		// holds the current selected input
 	uint8_t DefaultAttenuation;	// Default attenuation at start (volume)
+	bool Mute;					// holds the current mute state
 	
 	struct config_t	// Holds the configuration of all inputs
 	{

@@ -22,7 +22,7 @@ GUI gui(25, 26, 27, 28, 29, 30, 31);	// define the pins for the OLED
 IRrecv	irrecv(10);				// set the IR receiver pin
 decode_results results;			// object for storing the IR decode results
 
-const byte remoteDelay = 80;	// Delay in milliseconds after each key press of the remote
+const byte remoteDelay = 140;	// Delay in milliseconds after each key press of the remote
 
 byte IRcode;
 byte lastKey;

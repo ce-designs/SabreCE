@@ -2,7 +2,7 @@
 * Sabre.cpp
 *
 * Created: 19-12-2013 23:05:29
-* Author: CE-Dsigns
+* Author: CE-Designs
 */
 
 #if (ARDUINO >= 100)
@@ -93,8 +93,12 @@ void Sabre::begin(bool DualMono, uint8_t F_crystal)
 		EEPROM.write(EEPROM_FIRST_RUN, FIRST_RUN);
 		
 	}
+	// read all input settings from the EEPROM
 	readInputConfiguration();
-	applyInputConfiguration(SelectedInput);
+	// set the volume
+	setVolume(Attenuation);
+	// apply the settings for the last known selected input
+	applyInputConfiguration(SelectedInput);	
 }
 
 void Sabre::setRegisterDefaults()
@@ -273,12 +277,14 @@ void Sabre::unMuteDACS()
 {
 	bitClear(sReg10, 0);				// Clear bit zero of reg 10: unmute DACs (1'b1)
 	writeSabreReg(REG10, sReg10);		// Unmute DACs
+	Mute = true;
 }
 
 void Sabre::muteDACS()
 {
 	bitSet(sReg10, 0);					// Set bit zero for reg 10: Mute DACs (1'b1)
 	writeSabreReg(REG10, sReg10);		// Mute DACs.
+	Mute = false;
 }
 
 void Sabre::setDPLLbandwidth(uint8_t value)
@@ -947,7 +953,12 @@ void Sabre::readInputConfiguration()
 void Sabre::applyInputConfiguration(uint8_t input)
 {
 	input = input % NUMBER_OF_INPUTS;
-	muteDACS();
+	
+	if (!Mute)
+	{
+		muteDACS();
+	}	
+	
 	setSPDIFenable(Config[input].SPDIF_ENABLE);
 	setSerialDataMode(Config[input].SERIAL_DATA_MODE);
 	setBitMode(Config[input].BIT_MODE);
@@ -965,7 +976,11 @@ void Sabre::applyInputConfiguration(uint8_t input)
 	setDPLLbandwidth(Config[input].DPLL_BANDWIDTH);
 	setDPLLBandwidth128x(Config[input].DPLL_BW_128X);
 	setNotchDelay(Config[input].NOTCH_DELAY);
-	unMuteDACS();
+	
+	if (Mute)
+	{
+		unMuteDACS();
+	}	
 }
 
 //END PRIVATE FUNCTIONS///////////////////////////////////////////////////
