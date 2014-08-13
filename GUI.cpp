@@ -67,32 +67,31 @@ void GUI::printSampleRate(uint8_t col, uint8_t row)
 	OLED.setCursor(col, row);
 	if (!sabreDAC.Status.Lock)
 	{
-		OLED.print("NoLock");
+		OLED.print("NoLock ");
 	}
 	else
 	{
-		unsigned long sr = sabreDAC.getSampleRate();
 		if (Status.DSD_Mode)
 		{
-			if(sr > 6143000)
+			if(sabreDAC.SampleRate > 6143000)
 			{							
 				OLED.print("6.1 MHz");
 			}
 			else
 			{
-				if(sr > 5644000)
+				if(sabreDAC.SampleRate > 5644000)
 				{
 					OLED.print( "5.6 MHz");
 				}
 				else
 				{
-					if(sr > 3071000)
+					if(sabreDAC.SampleRate > 3071000)
 					{
 						OLED.print("3.0 MHz");
 					}
 					else
 					{
-						if(sr > 2822000)
+						if(sabreDAC.SampleRate > 2822000)
 						{
 							OLED.print("2.8 MHz");
 						}
@@ -105,48 +104,48 @@ void GUI::printSampleRate(uint8_t col, uint8_t row)
 			}
 		}
 		else
-		{                      // If not DSD_Mode then it is I2S or SPDIF
-			if(sr > 383900)
+		{                      // If not DSD_Mode then it is either I2S or SPDIF
+			if(sabreDAC.SampleRate > 383900)
 			{
 				OLED.print("384 KHz");
 			}
 			else
 			{
-				if(sr > 352700)
+				if(sabreDAC.SampleRate > 352700)
 				{
 					OLED.print("352 KHz");
 				}
 				else
 				{
-					if(sr > 191900)
+					if(sabreDAC.SampleRate > 191900)
 					{
 						OLED.print("192 KHz");
 					}
 					else
 					{
-						if(sr > 176300)
+						if(sabreDAC.SampleRate > 176300)
 						{
 							OLED.print("176 KHz");
 						}
 						else
 						{
-							if(sr > 95900)
+							if(sabreDAC.SampleRate > 95900)
 							{
 								OLED.print(" 96 KHz");
 							}
 							else
 							{
-								if(sr > 88100)
+								if(sabreDAC.SampleRate > 88100)
 								{
 									OLED.print(" 88 KHz");
 								}
 								else
 								{
-									if(sr > 47900)
+									if(sabreDAC.SampleRate > 47900)
 									{
 										OLED.print(" 48 KHz");
 									}
-									else if (sr > 43900)
+									else if (sabreDAC.SampleRate > 43900)
 									{
 										OLED.print(" 44 KHz");
 									}
@@ -181,7 +180,7 @@ void GUI::printInputFormat(uint8_t col, uint8_t row)
 	}
 	else
 	{
-		OLED.print("I2S  ");
+		OLED.print("PCM  ");
 	}
 }
 
@@ -232,7 +231,7 @@ void GUI::printInputSettingsMenu(uint8_t selectedInput)
 
 void GUI::PrintSelectedInputSettings(uint8_t setting)
 {
-	switch (setting % 15)
+	switch (setting % 13)
 	{
 		case 0:
 		printInputNameSetting(1, 1);
@@ -296,41 +295,20 @@ void GUI::PrintSelectedInputSettings(uint8_t setting)
 		case 11:
 		printBitmodeSetting(1, 1);
 		printDeemphFilterSetting(1, 2);
-		printRestoreDefaults(1, 3);
-		break;
-		case 12: 
-		printDeemphFilterSetting(1, 1);		
-		printRestoreDefaults(1, 2);
-		printExit(1, 3);
-		break;
-		case 13:
-		printRestoreDefaults(1, 1);
-		printExit(1, 2);
 		printEmptyRow(3);
 		OLED.setCursor(19,3);
 		OLED.write(DOWNWARDS_ARROW);
 		break;
-		case 14: 
-		printExit(1, 1);
+		case 12: 
+		printDeemphFilterSetting(1, 1);		
 		printEmptyRow(2);
 		printEmptyRow(3);
 		OLED.setCursor(19,3);
 		OLED.write(0x20);
-		break;
+		break;		
 	}
 }
 
-void GUI::printRestoreDefaults(uint8_t col, uint8_t row)
-{
-	OLED.setCursor(col, row);
-	OLED.print("SET: Defaults    ");
-}
-
-void GUI::printExit(uint8_t col, uint8_t row)
-{
-	OLED.setCursor(col, row);
-	OLED.print("SET: Exit        ");
-}
 
 void GUI::printEmptyRow(uint8_t row)
 {

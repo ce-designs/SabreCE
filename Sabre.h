@@ -22,11 +22,15 @@
 #define NUMBER_OF_INPUTS 6
 #define SR_LENGTH 8
 
+//// EEPROM LOCATIONS FOR STORING DATA ///
+
 #define EEPROM_SELECTED_INPUT 400
 #define EEPROM_DEF_ATTNU 401
 #define EEPROM_FIRST_RUN 402
 
-#define FIRST_RUN 512 		// this is just a flag for indicating that it's not the first run
+//// END OF EEPROM LOCATIONS ///
+
+#define FIRST_RUN 0x01 		// this is just a flag for indicating that it's not the first run
 
 #define DEFAULT_ATTNU 49  	// 49 decibel attenuation by default
 	
@@ -35,12 +39,12 @@ template <class T> int EEPROM_writeAnything(int ee, const T& value)
 	const byte* p = (const byte*)(const void*)&value;
 	unsigned int i;
 	byte currValue;
+	
 	for (i = 0; i < sizeof(value); i++)
 	{
 		currValue = EEPROM.read(ee);
 		if (currValue != *p)
 		{
-			
 			EEPROM.write(ee++, *p++);
 		}
 		else
@@ -130,7 +134,7 @@ class Sabre
 	
 	enum IIR_Bandwidth
 	{
-		use50K, normalIIR, use60K, use70K
+		normalIIR, use50K, use60K, use70K
 	};
 	
 	enum FIR_ROLLOFF_SPEED
@@ -171,7 +175,7 @@ class Sabre
 	
 	enum FinPhaseFlip
 	{
-		invertPhase, DoNoInvertPhase
+		invertPhase, DoNotInvertPhase
 	};
 	
 	enum OutputMode
@@ -245,8 +249,7 @@ class Sabre
 		
 	
 	unsigned long getSampleRate();	// Retrieve DPLL_NUM, calculate sample rate and file the SampleRateString char array
-	//void getSampleRateString();	// hold a 8 character string containing the sample rate
-	//void setSampleRateString();	// return a 8 character string containing the sample rate
+	unsigned long SampleRate;		// holds the calculated sample rate
 	
 	protected:
 	
@@ -271,13 +274,13 @@ class Sabre
 
 	byte readRegister(uint8_t value);
 
-	unsigned long SampleRate;	// holds the calculated sample rate
-	unsigned long getDPLL_NUM();
-	unsigned long calculateSampleRate(unsigned long dpllNumm);
-
-	bool firstRun();	// for checking if it is the first run of the controller
 	
-
+	volatile unsigned long getDPLL_NUM();
+	unsigned long calculateSampleRate(volatile unsigned long dpllNumm);
+	
+	bool firstRun();	// for checking if it is the first run of the controller
+	bool manual;		// for indicating: manual settings selection or use default settings
+	
 	//functions
 	public:
 	
@@ -312,11 +315,14 @@ class Sabre
 	void setDPLLbandwidthDefaults(uint8_t value);
 	void setDPLLBandwidth128x(uint8_t value);
 	
+	void applyDefaultSettings();
+	
 	void getStatus();
 	
 	void muteDACS();
 	void unMuteDACS();	
 	
+	void writeInputConfiguration();
 	void writeInputConfiguration(uint8_t input);
 	void writeSelectedInput();
 	void writeDefaultAttenuation();
@@ -338,8 +344,8 @@ class Sabre
 	void readInputConfiguration();
 	void applyInputConfiguration(uint8_t input);
 	
-	void setRegisterDefaults(); 
-	void useDefaultSettings();
+	void setRegisterDefaults(); 	
+	void resetInputNames();
 	
 	
 	//Sabre( const Sabre &c );

@@ -5,12 +5,19 @@
 * Author: CE-Designs
 */
 
+#define CHARACTER_OLED
+
 #include "Sabre.h"
 #include "GUI.h"
 #include "Wire.h"
 #include "EEPROM.h"
-#include "CharacterOLED.h"
 #include "IRremote.h"
+#ifdef CHARACTER_OLED
+#include "CharacterOLED.h"
+#else
+#include "OLEDFourBit.h"
+#endif
+
 
 #define INCREASE 0x00
 #define DECREASE 0x01
@@ -27,7 +34,8 @@ const byte remoteDelay = 140;	// Delay in milliseconds after each key press of t
 byte IRcode;
 byte lastKey;
 
-unsigned long SR_Millis = 0;
+unsigned long StatusMillis = 0;					// for recording the time of the last status update
+const unsigned int StatusUpdateInterval = 500;	// the interval between each status update
 
 enum GUI_states
 {
@@ -39,10 +47,13 @@ void setup()
 	//Serial.begin(9600);		// for debugging
 	Wire.begin();			// join the I2C bus
 	dac.begin(false, 100);	// true = dual mono mode | false = stereo mode, Clock frequency (MHz)
+
 	
 	//////////////////////////////////////////////////////////////////////////
-	dac.Status.DSD_Mode=true;
 	dac.Status.Lock = true;	
+	
+	
+	
 	
 	//dac.Attenuation = 49;
 	//dac.DefaultAttenuation = 49;
@@ -55,10 +66,13 @@ void setup()
 	
 	//////////////////////////////////////////////////////////////////////////
 	
+
+	
 	irrecv.enableIRIn();		// Start the receiver
 	
-	gui.sabreDAC = dac;
+	
 	gui.start();		// Start the user interface + initialize the display
+	gui.sabreDAC = dac;
 	gui.printHomeScreen(dac.SelectedInput, 99 - dac.Attenuation);
 }
 
@@ -117,11 +131,15 @@ void loop()
 		IRcode = 0;
 	}
 	
-	// print sample rate every 500 ms and only when the home screen is showing
-	if (millis() - SR_Millis >= 500 && gui.GUI_State == HomeScreen)
+	// print status every 500 ms and only when the home screen is showing
+	if (millis() - StatusMillis >= StatusUpdateInterval && gui.GUI_State == HomeScreen)
 	{
+		dac.getStatus();	
+		dac.getSampleRate();	
+		gui.sabreDAC = dac;
 		gui.printSampleRate(5, 2);
-		SR_Millis = millis();
+		gui.printInputFormat(5, 3);
+		StatusMillis = millis();
 	}
 	
 } // end of Main Loop
@@ -172,15 +190,8 @@ void handleKeyLeft()
 {
 	switch (gui.GUI_State)
 	{
-		case HomeScreen:
-		// CORRECTION FOR INPUT SELECTION ERROR
-		if (dac.SelectedInput == 0)
-		{
-			dac.SelectedInput -= (255 % NUMBER_OF_INPUTS);
-			handleKeyLeft();
-		}
-		// END CORRECTION		
-		setInput(dac.SelectedInput -= 1);		
+		case HomeScreen:			
+		setInput(-1);		
 		break;
 		case MainMenu:
 		changeSetting(-1);
@@ -192,13 +203,8 @@ void handleKeyRight()
 {
 	switch (gui.GUI_State)
 	{
-		case HomeScreen:
-		if (dac.SelectedInput == 255)
-		{
-			dac.SelectedInput += (255 % NUMBER_OF_INPUTS);
-			handleKeyRight();
-		}
-		setInput(dac.SelectedInput += 1);
+		case HomeScreen:		
+		setInput(+1);
 		break;
 		case MainMenu:
 		changeSetting(+1);
@@ -216,7 +222,7 @@ void handleKeyMenu()
 		gui.printInputSettingsMenu(dac.SelectedInput);
 		break;
 		case MainMenu:
-		dac.writeInputConfiguration(dac.SelectedInput); // write settings to the EEPROM
+		dac.writeInputConfiguration(); // write settings to the EEPROM
 		gui.GUI_State -= 1;
 		gui.printHomeScreen(dac.SelectedInput, 99 - dac.Attenuation);
 		break;
@@ -244,7 +250,19 @@ void setVolume(byte value)
 }
 
 void setInput(byte value)
-{	
+{		
+	dac.SelectedInput += value;		
+	// CORRECTION FOR INPUT SELECTION ERROR
+	if (dac.SelectedInput == 255)
+	{
+		dac.SelectedInput = NUMBER_OF_INPUTS -1;		
+	}
+	else if (dac.SelectedInput == NUMBER_OF_INPUTS)
+	{
+		dac.SelectedInput = 0;		
+	}	
+	// END CORRECTION
+		
 	dac.selectInput(dac.SelectedInput);	
 	gui.sabreDAC = dac;
 	gui.printInputName(0, 0);
@@ -265,22 +283,22 @@ void changeSetting(int value)
 		gui.printFIRsetting(1, 1);
 		break;
 		case 2:
-		dac.setIIRbandwidth((dac.Config[dac.SelectedInput].IIR_BANDWIDTH += value) % 4);
+		dac.setIIRbandwidth((dac.Config[dac.SelectedInput].IIR_BANDWIDTH += (value + 4)) % 4);
 		gui.sabreDAC = dac;
 		gui.printIIRsetting(1, 1);
 		break;
 		case 3:
-		dac.setNotchDelay((dac.Config[dac.SelectedInput].NOTCH_DELAY += value) % 6);
+		dac.setNotchDelay((dac.Config[dac.SelectedInput].NOTCH_DELAY += (value + 6)) % 6);
 		gui.sabreDAC = dac;
 		gui.printNotchSetting(1, 1);
 		break;
 		case 4:
-		dac.setQuantizer((dac.Config[dac.SelectedInput].QUANTIZER += value) % 6);
+		dac.setQuantizer((dac.Config[dac.SelectedInput].QUANTIZER += (value + 6)) % 6);
 		gui.sabreDAC = dac;
 		gui.printQuantizerSetting(1, 1);
 		break;
 		case 5:
-		dac.setDPLLbandwidth((dac.Config[dac.SelectedInput].DPLL_BANDWIDTH += value) % 9);
+		dac.setDPLLbandwidth((dac.Config[dac.SelectedInput].DPLL_BANDWIDTH += (value + 9)) % 9);
 		gui.sabreDAC = dac;
 		gui.printDPLLbandwidthSetting(1, 1);
 		break;
@@ -300,25 +318,26 @@ void changeSetting(int value)
 		gui.printSPDIFenableSetting(1, 1);
 		break;
 		case 9:
-		dac.setSerialDataMode((dac.Config[dac.SelectedInput].SERIAL_DATA_MODE += value) % 3);
+		dac.setSerialDataMode((dac.Config[dac.SelectedInput].SERIAL_DATA_MODE += (value + 3)) % 3);
 		gui.sabreDAC = dac;
 		gui.printSerialDataModeSetting(1, 1);
 		break;
 		case 10:
-		dac.setSPDIFsource((dac.Config[dac.SelectedInput].SPDIF_SOURCE += value) % 8);
+		dac.setSPDIFsource((dac.Config[dac.SelectedInput].SPDIF_SOURCE += (value + 8)) % 8);
 		gui.sabreDAC = dac;
 		gui.printSPDIFsourceSetting(1, 1);
 		break;
 		case 11:
-		dac.setBitMode((dac.Config[dac.SelectedInput].BIT_MODE += value) % 4);
+		dac.setBitMode((dac.Config[dac.SelectedInput].BIT_MODE += (value + 4)) % 4);
 		gui.sabreDAC = dac;
 		gui.printBitmodeSetting(1, 1);
 		break;
 		case 12:
-		dac.setDeEmphasisSelect((dac.Config[dac.SelectedInput].DE_EMPHASIS_SELECT += value) % 4);
+		dac.setDeEmphasisSelect((dac.Config[dac.SelectedInput].DE_EMPHASIS_SELECT += (value + 4)) % 4);
 		gui.sabreDAC = dac;
 		gui.printDeemphFilterSetting(1, 1);
 		break;
+		
 	}
 	
 	

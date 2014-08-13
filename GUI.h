@@ -84,8 +84,6 @@ class GUI : public CharacterOLED, public Sabre
 	void printSPDIFsourceSetting(uint8_t col, uint8_t row);
 	void printBitmodeSetting(uint8_t col, uint8_t row);
 	void printDeemphFilterSetting(uint8_t col, uint8_t row);
-	void printExit(uint8_t col, uint8_t row);
-	void printRestoreDefaults(uint8_t col, uint8_t row);
 	
 	void printHomeScreen(uint8_t selectedInput, uint8_t attenuation);
 	void printInputSettingsMenu(uint8_t selectedInput);
