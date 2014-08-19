@@ -1,7 +1,7 @@
 SabreCE
 =======
 
-For controlling a Sabre DAC with the CE644 v1.3 development board in combination with a Newhaven character OLED display. (not for sale!)
+For controlling a Sabre DAC with the CE644 development board v1.3 in combination with a Newhaven character OLED. (not for sale!)
 
 This repository contains:
   - A Sabre library for controling a ES9018 DAC from ESS.
@@ -14,7 +14,7 @@ This repository contains:
 To be added:
   - A DS1307 library for interfacing the DS1307 RTC.
   - A encoder library for infacing a rotary encoder.
-  - 
+  - probably more to come...
 
 
   
