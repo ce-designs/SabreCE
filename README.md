@@ -24,7 +24,7 @@ Please also read the MIT licence.
 
 
 CE644 v1.3 development board product page:
-http://ce-designs.net/index.php/my-projects/other-builds/ce644-development-board-v1-3
+http://ce-designs.net/index.php/my-projects/other-builds/28-ce644-development-board-v1-3-final
 
 
 Homepage:
