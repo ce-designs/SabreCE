@@ -17,6 +17,7 @@
 
 
 
+
 // default constructor
 GUI::GUI(uint8_t rs, uint8_t rw, uint8_t enable, uint8_t d4, uint8_t d5, uint8_t d6, uint8_t d7)
 {
@@ -29,6 +30,8 @@ void GUI::start()
 	GUI_State = HomeScreen;
 	OLED.begin(20, 4);	// initialize the 20x4 OLED		
 	this->Setting = 0;
+	this->CursorPosition = 0;
+	this->TimerEnabled = false;
 }
 
 void GUI::printLargeAttenuation(uint8_t Attenuation, uint8_t col)
@@ -80,9 +83,7 @@ void GUI::printInputName(uint8_t col, uint8_t row)
 	for (uint8_t i = 0; i < INPUT_NAME_SIZE; i++)
 	{
 		OLED.write(sabreDAC.Config[sabreDAC.SelectedInput % NUMBER_OF_INPUTS].INPUT_NAME[i]);
-	}
-	OLED.write(0x20);	// print blank
-	OLED.write(0x20);	// print blank
+	}	
 }
 
 void GUI::printSampleRate(uint8_t col, uint8_t row)
@@ -257,7 +258,7 @@ void GUI::printInputSettingsMenu(uint8_t selectedInput)
 
 void GUI::PrintSelectedInputSettings(uint8_t value)
 {
-	defineSetting(value);	// define the setting variable value
+	SetPointerValue(value, &this->Setting, SETTINGS_COUNT);		// set the correct value for the setting variable
 	switch (this->Setting)	
 	{
 		case 0:
@@ -381,6 +382,11 @@ void GUI::printInputNameSetting(uint8_t col, uint8_t row)
 	OLED.setCursor(col, row);
 	OLED.print("INP: ");
 	printInputName(col + 5, row);
+	// fill row with blanks
+	for (uint8_t i = 0; i < 4; i++)
+	{
+		OLED.write(0x20);	// print blank
+	}
 }
 
 void GUI::printFIRsetting(uint8_t col, uint8_t row)
@@ -655,30 +661,108 @@ void GUI::printDeemphFilterSetting(uint8_t col, uint8_t row)
 	}
 }
 
-///END DEFAULT SCREEN/MENU PRINTING////////////////
-
-void GUI::defineSetting(uint8_t value)
-{
-	if (value == NEXT_SETTING)
+void GUI::SetCursorPosition( uint8_t value )
+{	
+	cli();
+	if (this->CursorPosition != 0 && value != 0)
 	{
-		if (this->Setting == SETTINGS_COUNT)
+		printSelectedChar();	
+	}
+	SetPointerValue(value, &this->CursorPosition, INPUT_NAME_SIZE);		
+	OLED.setCursor(5 + this->CursorPosition, 1);	
+	if (this->CursorPosition > 0 && this->TimerEnabled == false)
+	{
+		this->TimerEnabled = true;
+		
+		//set timer1 interrupt at 1Hz
+		TCCR1A = 0;// set entire TCCR1A register to 0
+		TCCR1B = 0;// same for TCCR1B
+		TCNT1  = 0;//initialize counter value to 0
+		// set compare match register for 1hz increments
+		OCR1A =  7812; // = (16*10^6) / (0.5*1024) - 1 (must be <65536)
+		// turn on CTC mode
+		TCCR1B |= (1 << WGM12);
+		// Set CS12 and CS10 bits for 1024 prescaler
+		TCCR1B |= (1 << CS12) | (1 << CS10);
+		// enable timer compare interrupt
+		TIMSK1 |= (1 << OCIE1A);	
+			
+	}	
+	else if (this->CursorPosition == 0 && this->TimerEnabled)
+	{		
+		OLED.write(0x20);		
+		stopInputNameEditMode(); // stop timer and 
+	}
+	sei();	
+}
+
+void GUI::SetPointerValue(uint8_t value, uint8_t *pointerValue, uint8_t maxValue)
+{
+	if (value == NEXT)
+	{
+		if (*pointerValue == maxValue)
 		{
-			this->Setting = 0;
+			*pointerValue = 0;
 		}
 		else
 		{
-			this->Setting++; // set to next setting
+			*pointerValue += 1; // set to next setting, cursor position or whatever
 		}
 	}
-	else if (value == PREVIOUS_SETTING)
+	else if (value == PREVIOUS)
 	{
-		if (this->Setting == 0)
+		if (*pointerValue == 0)
 		{
-			this->Setting = SETTINGS_COUNT;
+			*pointerValue = maxValue;
 		}
 		else
 		{
-			this->Setting--; // set to previous setting
+			*pointerValue -= 1; // set to previous setting, cursor position or whatever
 		}
 	}
 }
+
+void GUI::printSelectedChar()
+{
+	OLED.setCursor(5 + this->CursorPosition, 1);
+	OLED.write(sabreDAC.Config[sabreDAC.SelectedInput % NUMBER_OF_INPUTS].INPUT_NAME[this->CursorPosition -1]);	
+}
+
+bool GUI::InputNameEditMode()
+{
+	return this->CursorPosition > 0;
+}
+
+void GUI::printNextChar()
+{
+	cli();
+	OLED.setCursor(5 + this->CursorPosition, 1);
+	uint8_t i = sabreDAC.Config[sabreDAC.SelectedInput % NUMBER_OF_INPUTS].INPUT_NAME[this->CursorPosition -1] + 1;
+	sabreDAC.Config[sabreDAC.SelectedInput % NUMBER_OF_INPUTS].INPUT_NAME[this->CursorPosition -1] = i;
+	OLED.write(i);
+	sei();
+}
+
+void GUI::PrintPreviousChar()
+{
+	cli();
+	OLED.setCursor(5 + this->CursorPosition, 1);
+	uint8_t i = sabreDAC.Config[sabreDAC.SelectedInput % NUMBER_OF_INPUTS].INPUT_NAME[this->CursorPosition -1] - 1;
+	sabreDAC.Config[sabreDAC.SelectedInput % NUMBER_OF_INPUTS].INPUT_NAME[this->CursorPosition -1] = i;
+	OLED.write(i);
+	sei();
+}
+
+void GUI::stopInputNameEditMode()
+{
+	cli();
+	TCCR1A = 0;// set entire TCCR1A register to 0
+	TCCR1B = 0;// same for TCCR1B
+	sei();
+	this->TimerEnabled = false;
+}
+
+
+
+
+///END DEFAULT SCREEN/MENU PRINTING////////////////

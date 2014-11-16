@@ -17,9 +17,11 @@
 #include "CharacterOLED.h"
 #include "Sabre.h"
 
-#define SETTINGS_COUNT 12
-#define NEXT_SETTING 0x01
-#define PREVIOUS_SETTING 0x02
+#define SETTINGS_COUNT 13
+#define NEXT 0x01
+#define PREVIOUS 0x02
+
+
 
 class GUI : public CharacterOLED, public Sabre
 {
@@ -31,16 +33,16 @@ class GUI : public CharacterOLED, public Sabre
 	uint8_t GUI_State;		// for holding the current GUI state and the corresponding GUI sub state
 	uint8_t GUI_Substate;	// for holding the corresponding GUI sub state
 	
-	uint8_t Setting;	
+	uint8_t Setting;
+	
+	bool InputNameEditMode();	
 	
 	Sabre sabreDAC;
 	
 	protected:
 		
 	private:
-	
-	
-	
+			
 	struct GUI_Settings
 	{
 		uint8_t homeScreen;
@@ -58,8 +60,9 @@ class GUI : public CharacterOLED, public Sabre
 		DefaultHS, NoVolumeNumbersHS, NoInputNumberHS
 	};
 
-	
-	
+	uint8_t CursorPosition;	// holds the cursor position when changing a input name
+	bool TimerEnabled;
+		
 	//functions
 	public:
 	GUI(uint8_t rs, uint8_t rw, uint8_t enable, uint8_t d4, uint8_t d5, uint8_t d6, uint8_t d7);
@@ -92,16 +95,22 @@ class GUI : public CharacterOLED, public Sabre
 	void printInputSettingsMenu(uint8_t selectedInput);
 	void PrintSelectedInputSettings(uint8_t value);
 	
-
 	void printEmptyRow(uint8_t row);
 	void printLockSymbol(uint8_t col, uint8_t row);
-
-
 	
+	void printSelectedChar();
+	void printNextChar();
+	void PrintPreviousChar();
+
+	void SetCursorPosition(uint8_t value);
+	
+	void stopInputNameEditMode();	
+		
 	protected:
 	private:
 	
-	void defineSetting(uint8_t value);
+	void SetPointerValue(uint8_t value, uint8_t *pointervalue, uint8_t maxValue);
+	
 	
 	GUI( const GUI &c );
 	GUI& operator=( const GUI &c );

@@ -18,7 +18,7 @@
 #include "Wire.h"
 #include "EEPROM.h"
 
-#define INPUT_NAME_SIZE 10
+#define INPUT_NAME_SIZE 8
 #define NUMBER_OF_INPUTS 6
 #define SR_LENGTH 8
 
@@ -30,7 +30,7 @@
 
 //// END OF EEPROM LOCATIONS ///
 
-#define FIRST_RUN 0x01 		// this is just a flag for indicating that it's not the first run
+#define FIRST_RUN 0x03 		// this is just a flag for indicating that it's not the first run
 
 #define DEFAULT_ATTNU 49  	// 49 decibel attenuation by default
 	
@@ -273,7 +273,6 @@ class Sabre
 	uint8_t sReg27;		// value of status register 27
 
 	byte readRegister(uint8_t value);
-
 	
 	volatile unsigned long getDPLL_NUM();
 	unsigned long calculateSampleRate(volatile unsigned long dpllNumm);

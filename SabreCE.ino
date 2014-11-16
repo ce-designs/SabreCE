@@ -46,6 +46,8 @@ byte CenterKeyCount = 0;			// for determining how long the user pressed the cent
 unsigned long StatusMillis = 0;		// for recording the time of the last status update
 byte statusUpdateCount = 0;			// 
 
+bool Toggle;						// used by timer2, see TIMER_METHODS
+
 #pragma endregion GLOBAL_VARIABLES
 
 #pragma region CONSTANTS
@@ -64,7 +66,7 @@ const byte LargeAttnuStartPos = 13;	// the start position for printing the large
 
 enum GUI_states
 {
-	HomeScreen, MainMenu, InputSettingsMenu, DacSettingsMenu, DateTimeMenu, DisplayMenu
+	HomeScreen, InputSettingsMenu, MainMenu, DacSettingsMenu, DateTimeMenu, DisplayMenu
 };
 
 #pragma endregion ENUMS
@@ -73,7 +75,7 @@ enum GUI_states
 
 void setup()
 {
-	//Serial.begin(9600);		// for debugging
+	Serial.begin(9600);		// for debugging
 	
 	Wire.begin();			// join the I2C bus
 	dac.begin(false, 100);	// true = dual mono mode | false = stereo mode, Clock frequency (MHz)
@@ -121,12 +123,12 @@ void loop()
 			break;
 			case KEY_RIGHT:
 			handleKeyRight();
-			delay(remoteDelay * 2);	// add some extra delay
+			delay(remoteDelay * 2); // add some extra delay
 			lastKey = KEY_RIGHT;
 			break;
 			case KEY_CENTER:
-			CenterKeyCount++;
-			lastKey = KEY_CENTER;			
+			handleKeyCenter();
+			lastKey = KEY_CENTER;
 			break;
 			case KEY_MENU:
 			handleKeyMenu();
@@ -143,13 +145,6 @@ void loop()
 		delay(remoteDelay);
 		IRcode = 0;
 	}
-	
-	// Enter the input setting menu after the user pressed the center key for CenterKeyDuration time
-	if (CenterKeyCount * remoteDelay > CenterKeyDuration)
-	{		
-		CenterKeyCount = 0;
-		handleKeyMenu();
-	}	
 	
 	
 	// print status every StatusUpdateInterval (ms) and only when the home screen is showing
@@ -201,8 +196,15 @@ void handleKeyUp()
 		case HomeScreen:
 		setVolume(INCREASE);
 		break;
-		case MainMenu:
-		gui.PrintSelectedInputSettings(PREVIOUS_SETTING);
+		case InputSettingsMenu:
+		if (gui.InputNameEditMode())
+		{
+			gui.printNextChar();	// change selected character of the input name
+		}
+		else
+		{
+			gui.PrintSelectedInputSettings(PREVIOUS);
+		}		
 		break;
 	}
 }
@@ -214,8 +216,15 @@ void handleKeyDown()
 		case HomeScreen:
 		setVolume(DECREASE);
 		break;
-		case MainMenu:
-		gui.PrintSelectedInputSettings(NEXT_SETTING);
+		case InputSettingsMenu:
+		if (gui.InputNameEditMode())
+		{
+			gui.PrintPreviousChar(); // change selected character of the input name						
+		}
+		else
+		{
+			gui.PrintSelectedInputSettings(NEXT);
+		}		
 		break;
 	}
 }
@@ -227,8 +236,8 @@ void handleKeyLeft()
 		case HomeScreen:
 		setInput(-1);
 		break;
-		case MainMenu:
-		changeSetting(-1);
+		case InputSettingsMenu:		
+		changeInputSetting(-1);
 		break;
 	}
 }
@@ -240,10 +249,25 @@ void handleKeyRight()
 		case HomeScreen:
 		setInput(+1);
 		break;
-		case MainMenu:
-		changeSetting(+1);
+		case InputSettingsMenu:
+		changeInputSetting(+1);
 		break;
 	}
+}
+
+void handleKeyCenter()
+{	
+	CenterKeyCount++; // count successive received key codes of the center key
+	// Enter the input setting menu only after the user pressed the center key for CenterKeyDuration time
+	if (CenterKeyCount * remoteDelay > CenterKeyDuration)
+	{
+		CenterKeyCount = 0;	// reset counter
+		gui.sabreDAC = dac;
+		gui.GUI_State = InputSettingsMenu;
+		gui.printInputSettingsMenu(dac.SelectedInput);
+	}
+		
+	
 }
 
 void handleKeyMenu()
@@ -251,13 +275,18 @@ void handleKeyMenu()
 	switch (gui.GUI_State)
 	{
 		case HomeScreen:
-		gui.sabreDAC = dac;
-		gui.GUI_State += 1;
-		gui.printInputSettingsMenu(dac.SelectedInput);
+		
 		break;
-		case MainMenu:
+		case InputSettingsMenu:
+		if (gui.InputNameEditMode())
+		{
+			// stop edit mode and timer
+			gui.stopInputNameEditMode();
+			// copy the edited input name from the gui class
+			dac.Config[dac.SelectedInput] = gui.sabreDAC.Config[dac.SelectedInput];		
+		}
 		dac.writeInputConfiguration(); // write settings to the EEPROM
-		gui.GUI_State -= 1;
+		gui.GUI_State = HomeScreen;
 		gui.printHomeScreen(dac.SelectedInput, dac.Attenuation);
 		gui.Setting = 0; // reset the Setting variable so the next time the menu starts at the first setting
 		break;
@@ -318,17 +347,18 @@ void setInput(byte value)
 	
 	dac.selectInput(dac.SelectedInput);
 	gui.sabreDAC = dac;
-	gui.printInputName(0, 0);
+	gui.printInputName(4, 2);
 	gui.printLargeInput(dac.SelectedInput, 0);
 	dac.writeSelectedInput();
 }
 
-void changeSetting(int value)
+void changeInputSetting(int value)
 {
 	switch (gui.Setting % SETTINGS_COUNT)
 	{
 		case 0:
-		/* Your code here */
+		if (value == -1) value = PREVIOUS;		
+		gui.SetCursorPosition(value);
 		break;
 		case 1:
 		dac.setFIRrolloffSpeed((dac.Config[dac.SelectedInput].FIR_FILTER += value) % 2);
@@ -394,3 +424,24 @@ void changeSetting(int value)
 }
 
 #pragma endregion VOLUME_INPUT_SETTING_METHODS
+
+#pragma region TIMER_METHODS
+
+
+
+// timer for blinking the cursor
+ISR(TIMER1_COMPA_vect)	//timer1 interrupt 1Hz toggles the cursor
+{	
+	gui.SetCursorPosition(0); // set cursor back to correct position
+	if (Toggle)
+	{
+		gui.OLED.write(0x5F);
+	}
+	else
+	{
+		gui.printSelectedChar();
+	}
+	Toggle = !Toggle;	
+}
+
+#pragma endregion TIMER_METHODS
