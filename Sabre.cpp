@@ -596,11 +596,11 @@ void Sabre::setOSFfilter(uint8_t value)
 	{
 		case bypassOSFfilter:
 		bitSet(sReg17, 6);				// Reg 17: Don't use the OSF filter
-		Reg17.OSF_Bypass = false;
+		Reg17.OSF_Bypass = true;
 		break;
 		default:
 		bitClear(sReg17, 6);			// Reg 17: (Default) Use the OSF filter
-		Reg17.OSF_Bypass = true;
+		Reg17.OSF_Bypass = false;
 		break;
 	}
 	writeSabreReg(REG17, sReg17);		// Reg 17: Write setting to register
@@ -946,7 +946,8 @@ unsigned long Sabre::calculateSampleRate(unsigned long DPLL_NUM)
 		{
 			i = (64L * 4295L)  / Fcrystal;
 			DPLL_NUM /= i;
-		}	
+		}
+		
 	}
 	if (DPLL_NUM < 90000)		// Adjusting because in integer operation, the residual is truncated
 	{
@@ -970,10 +971,10 @@ unsigned long Sabre::calculateSampleRate(unsigned long DPLL_NUM)
 			}
 		}
 	}
-	if(Reg17.OSF_Bypass)	// When OSF is bypassed, the magnitude of DPLL is reduced by a factor of 64
+	if(this->Reg17.OSF_Bypass)	// When OSF is bypassed, the magnitude of DPLL is reduced by a factor of 64
 	{
 		DPLL_NUM*=64;
-	}
+	}	
 	return DPLL_NUM;			// return the sample rate
 }
 

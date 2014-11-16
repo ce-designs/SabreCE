@@ -28,7 +28,7 @@ void GUI::start()
 {		
 	GUI_State = HomeScreen;
 	OLED.begin(20, 4);	// initialize the 20x4 OLED		
-	Setting = 0;
+	this->Setting = 0;
 }
 
 void GUI::printLargeAttenuation(uint8_t Attenuation, uint8_t col)
@@ -44,6 +44,29 @@ void GUI::printLargeAttenuation(uint8_t Attenuation, uint8_t col)
 	{
 		OLED.printLargeNumber(Attenuation, col, 1);
 	}	
+}
+
+void GUI::printLargeMuteSymbol(uint8_t col)
+{
+	OLED.setCursor(col, 0);
+	OLED.print("Mute   ");
+	uint8_t x = 1;
+	
+	for (uint8_t i = 0; i < 21; i++)
+	{
+		if (i % 7 == 0)			// define cursor position
+		{			
+			OLED.setCursor(col, x++); 
+		}				
+		if (i < 7 || i == 10 || i > 13)
+		{
+			OLED.write(0x20);	// print blank			
+		}
+		else
+		{
+			OLED.write(0x03);	// print block			
+		}
+	}
 }
 
 void GUI::printLargeInput(uint8_t selectedInput, uint8_t col)
@@ -67,7 +90,7 @@ void GUI::printSampleRate(uint8_t col, uint8_t row)
 	OLED.setCursor(col, row);
 	if (!sabreDAC.Status.Lock)
 	{
-		OLED.print("NoLock ");
+		OLED.print("No Lock  ");
 	}
 	else
 	{
@@ -75,29 +98,29 @@ void GUI::printSampleRate(uint8_t col, uint8_t row)
 		{
 			if(sabreDAC.SampleRate > 6143000)
 			{							
-				OLED.print("6.1 MHz");
+				OLED.print("6.1 MHz  ");
 			}
 			else
 			{
 				if(sabreDAC.SampleRate > 5644000)
 				{
-					OLED.print( "5.6 MHz");
+					OLED.print( "5.6 MHz  ");
 				}
 				else
 				{
 					if(sabreDAC.SampleRate > 3071000)
 					{
-						OLED.print("3.0 MHz");
+						OLED.print("3.0 MHz  ");
 					}
 					else
 					{
 						if(sabreDAC.SampleRate > 2822000)
 						{
-							OLED.print("2.8 MHz");
+							OLED.print("2.8 MHz  ");
 						}
 						else
 						{
-							OLED.print("UNKNOWN");
+							OLED.print("Unknown  ");
 						}
 					}
 				}
@@ -107,51 +130,51 @@ void GUI::printSampleRate(uint8_t col, uint8_t row)
 		{                      // If not DSD_Mode then it is either I2S or SPDIF
 			if(sabreDAC.SampleRate > 383900)
 			{
-				OLED.print("384 KHz");
+				OLED.print("384 KHz  ");
 			}
 			else
 			{
 				if(sabreDAC.SampleRate > 352700)
 				{
-					OLED.print("352 KHz");
+					OLED.print("352.8 KHz");
 				}
 				else
 				{
 					if(sabreDAC.SampleRate > 191900)
 					{
-						OLED.print("192 KHz");
+						OLED.print("192 KHz  ");
 					}
 					else
 					{
 						if(sabreDAC.SampleRate > 176300)
 						{
-							OLED.print("176 KHz");
+							OLED.print("176.4 KHz");
 						}
 						else
 						{
 							if(sabreDAC.SampleRate > 95900)
 							{
-								OLED.print(" 96 KHz");
+								OLED.print("96 KHz   ");
 							}
 							else
 							{
 								if(sabreDAC.SampleRate > 88100)
 								{
-									OLED.print(" 88 KHz");
+									OLED.print("88 KHz   ");
 								}
 								else
 								{
 									if(sabreDAC.SampleRate > 47900)
 									{
-										OLED.print(" 48 KHz");
+										OLED.print("48 KHz   ");
 									}
 									else if (sabreDAC.SampleRate > 43900)
 									{
-										OLED.print(" 44 KHz");
+										OLED.print("44.1 KHz ");
 									}
 									else
 									{
-										OLED.print("UNKNOWN");
+										OLED.print("Unknown  ");
 									}
 								}
 							}
@@ -192,46 +215,50 @@ void GUI::printHomeScreen(uint8_t selectedInput, uint8_t attenuation)
 	OLED.defineCustomChar1();					// restore custom character 1
 	OLED.defineCustomChar2();					// restore custom character 2
 	OLED.clear();
-	printInputName(0, 0);						// Home Screen: Always print input alias in the top left corner of the screen
+	
 	switch (GUI_Substate)
 	{
 		case NoVolumeNumbersHS:					// Home Screen: No volume numbers
+		printInputName(0, 0);
 		printLargeInput(selectedInput, 16);
 		printSampleRate(0, 2);
 		printInputFormat(0, 3);
 		break;
 		case NoInputNumberHS:					// Home Screen: No large input number
+		printInputName(0, 0);
 		printSampleRate(0, 2);
 		printInputFormat(0, 3);
 		printLargeAttenuation(attenuation, 13);
 		break;
 		default:								// Home Screen: (default) use large input and volume numbers
+		printInputName(4, 2);											
 		printLargeInput(selectedInput, 0);
 		printLargeAttenuation(attenuation, 13);
-		printSampleRate(5, 2);
-		printInputFormat(5, 3);
+		printSampleRate(0, 0);
+		printInputFormat(4, 3);
 		break;
 	}
 }
 
 void GUI::printInputSettingsMenu(uint8_t selectedInput)
-{
+{	
 	OLED.defineUpwardsArrowChar(UPWARDS_ARROW);
 	OLED.defineDownwardsArrowChar(DOWNWARDS_ARROW);	
 	OLED.defineLockedChar(LOCK_SYMBOL);
 	OLED.clear();
 	String input = "INPUT";
 	printTitleBar(input + (selectedInput + 1));		// print Input Settings Menu: Print title bar with the selected input	
-	PrintSelectedInputSettings(Setting);		// print all the select input related settings
+	PrintSelectedInputSettings(255);			// print all the select input related settings
 	OLED.setCursor(0, 1);
 	OLED.write(0x7E);							// Print arrow to indicate the selected setting
 	OLED.setCursor(19,3);
 	OLED.write(1);
 }
 
-void GUI::PrintSelectedInputSettings(uint8_t setting)
+void GUI::PrintSelectedInputSettings(uint8_t value)
 {
-	switch (setting % 13)
+	defineSetting(value);	// define the setting variable value
+	switch (this->Setting)	
 	{
 		case 0:
 		printInputNameSetting(1, 1);
@@ -239,6 +266,8 @@ void GUI::PrintSelectedInputSettings(uint8_t setting)
 		printIIRsetting(1 ,3);
 		OLED.setCursor(19,1);
 		OLED.write(0x20);
+		OLED.setCursor(19,3);
+		OLED.write(DOWNWARDS_ARROW);
 		break;
 		case 1:
 		printFIRsetting(1, 1);
@@ -303,8 +332,10 @@ void GUI::PrintSelectedInputSettings(uint8_t setting)
 		printDeemphFilterSetting(1, 1);		
 		printEmptyRow(2);
 		printEmptyRow(3);
+		OLED.setCursor(19,1);
+		OLED.write(UPWARDS_ARROW);
 		OLED.setCursor(19,3);
-		OLED.write(0x20);
+		OLED.write(0x20);		
 		break;		
 	}
 }
@@ -625,3 +656,29 @@ void GUI::printDeemphFilterSetting(uint8_t col, uint8_t row)
 }
 
 ///END DEFAULT SCREEN/MENU PRINTING////////////////
+
+void GUI::defineSetting(uint8_t value)
+{
+	if (value == NEXT_SETTING)
+	{
+		if (this->Setting == SETTINGS_COUNT)
+		{
+			this->Setting = 0;
+		}
+		else
+		{
+			this->Setting++; // set to next setting
+		}
+	}
+	else if (value == PREVIOUS_SETTING)
+	{
+		if (this->Setting == 0)
+		{
+			this->Setting = SETTINGS_COUNT;
+		}
+		else
+		{
+			this->Setting--; // set to previous setting
+		}
+	}
+}

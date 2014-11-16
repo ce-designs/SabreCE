@@ -17,7 +17,9 @@
 #include "CharacterOLED.h"
 #include "Sabre.h"
 
-#define SETTINGS_COUNT 15
+#define SETTINGS_COUNT 12
+#define NEXT_SETTING 0x01
+#define PREVIOUS_SETTING 0x02
 
 class GUI : public CharacterOLED, public Sabre
 {
@@ -65,6 +67,7 @@ class GUI : public CharacterOLED, public Sabre
 	void start();
 	
 	void printLargeAttenuation(uint8_t Attenuation, uint8_t col);
+	void printLargeMuteSymbol(uint8_t col);
 	void printLargeInput(uint8_t selectedInput, uint8_t col);
 	void printInputName(uint8_t col, uint8_t row);
 	void printSampleRate(uint8_t col, uint8_t row);
@@ -87,7 +90,7 @@ class GUI : public CharacterOLED, public Sabre
 	
 	void printHomeScreen(uint8_t selectedInput, uint8_t attenuation);
 	void printInputSettingsMenu(uint8_t selectedInput);
-	void PrintSelectedInputSettings(uint8_t inputSetting);
+	void PrintSelectedInputSettings(uint8_t value);
 	
 
 	void printEmptyRow(uint8_t row);
@@ -98,7 +101,7 @@ class GUI : public CharacterOLED, public Sabre
 	protected:
 	private:
 	
-	
+	void defineSetting(uint8_t value);
 	
 	GUI( const GUI &c );
 	GUI& operator=( const GUI &c );

@@ -53,6 +53,7 @@
 #define DOWNWARDS_ARROW 0x01
 #define LOCK_SYMBOL		0x02
 
+
 class CharacterOLED : public Print {
 public:
   

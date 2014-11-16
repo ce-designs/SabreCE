@@ -5,7 +5,16 @@
 * Author: CE-Designs
 */
 
+#pragma region #DEFINE_DIRECTIVES
+
 #define CHARACTER_OLED
+
+#define INCREASE 0x00
+#define DECREASE 0x01
+
+#pragma endregion #DEFINE_DIRECTIVES
+
+#pragma region HEADER_FILE_INCLUSIONS
 
 #include "Sabre.h"
 #include "GUI.h"
@@ -18,54 +27,56 @@
 #include "OLEDFourBit.h"
 #endif
 
+#pragma endregion HEADER_FILE_INCLUSIONS
 
-#define INCREASE 0x00
-#define DECREASE 0x01
+#pragma region GLOBAL_VARIABLES
 
-Sabre dac;	// dac
+Sabre dac;							// dac
 
-GUI gui(25, 26, 27, 28, 29, 30, 31);	// define the pins for the OLED
+GUI gui(25, 26, 27, 28, 29, 30, 31);// define the pins for the OLED
 
-IRrecv	irrecv(10);				// set the IR receiver pin
-decode_results results;			// object for storing the IR decode results
+IRrecv	irrecv(10);					// set the IR receiver pin
+decode_results results;				// object for storing the IR decode results
+
+byte IRcode;						// for storing the current IR code
+byte lastKey;						// for remembering the last IR Remote key
+
+byte CenterKeyCount = 0;			// for determining how long the user pressed the center key
+
+unsigned long StatusMillis = 0;		// for recording the time of the last status update
+byte statusUpdateCount = 0;			// 
+
+#pragma endregion GLOBAL_VARIABLES
+
+#pragma region CONSTANTS
 
 const byte remoteDelay = 140;	// Delay in milliseconds after each key press of the remote
 
-byte IRcode;
-byte lastKey;
+const unsigned int CenterKeyDuration = 1000;	//  Time in milliseconds that the center key needs to be pressed before it invokes a method
 
-unsigned long StatusMillis = 0;					// for recording the time of the last status update
 const unsigned int StatusUpdateInterval = 500;	// the interval between each status update
+
+const byte LargeAttnuStartPos = 13;	// the start position for printing the large attenuation 
+
+#pragma endregion CONSTANTS
+
+#pragma region ENUMS
 
 enum GUI_states
 {
 	HomeScreen, MainMenu, InputSettingsMenu, DacSettingsMenu, DateTimeMenu, DisplayMenu
 };
 
+#pragma endregion ENUMS
+
+#pragma region SETUP
+
 void setup()
 {
 	//Serial.begin(9600);		// for debugging
+	
 	Wire.begin();			// join the I2C bus
 	dac.begin(false, 100);	// true = dual mono mode | false = stereo mode, Clock frequency (MHz)
-
-	
-	//////////////////////////////////////////////////////////////////////////
-	dac.Status.Lock = true;	
-	
-	
-	
-	
-	//dac.Attenuation = 49;
-	//dac.DefaultAttenuation = 49;
-	//dac.writeDefaultAttenuation();
-	
-	//dac.setBitMode(dac.BitMode32);			// or dac.BitMode16 | dac.BitMode20 | dac.BitMode24
-	//dac.setSerialDataMode(dac.I2S);			// or dac.LJ | dac.RJ
-	//dac.setDPLLbandwidth(dac.DPLL_Best);	//
-	//dac.setDeEmphasisSelect(dac.f44_1kHz);	// or dac.f32kHz | dac.f48kHz
-	
-	//////////////////////////////////////////////////////////////////////////
-	
 
 	
 	irrecv.enableIRIn();		// Start the receiver
@@ -76,51 +87,53 @@ void setup()
 	gui.printHomeScreen(dac.SelectedInput, 99 - dac.Attenuation);
 }
 
+#pragma endregion SETUP
 
-
+#pragma region MAIN_LOOP
 
 // Main Loop
 void loop()
 {
 	// IR routines
 	if (irrecv.decode(&results)) {
-		setIRcode();		
+		setIRcode();
 		irrecv.resume(); // Receive the next value
-	}		
+	}
 	
 	// If a remote control key is pressed than let the GUI class
 	// decide on which function to call
 	if (IRcode != 0)
-	{		
+	{
 		switch (IRcode)
 		{
 			case KEY_UP:
-			handleKeyUp();			
+			handleKeyUp();
 			lastKey = KEY_UP;
 			break;
 			case KEY_DOWN:
-			handleKeyDown();			
+			handleKeyDown();
 			lastKey = KEY_DOWN;
 			break;
 			case KEY_LEFT:
 			handleKeyLeft();
-			delay(remoteDelay * 2);
+			delay(remoteDelay * 2); // add some extra delay
 			lastKey = KEY_LEFT;
 			break;
 			case KEY_RIGHT:
 			handleKeyRight();
-			delay(remoteDelay * 2);
+			delay(remoteDelay * 2);	// add some extra delay
 			lastKey = KEY_RIGHT;
 			break;
 			case KEY_CENTER:
-			//handleKeyCenter();
-			lastKey = KEY_CENTER;
+			CenterKeyCount++;
+			lastKey = KEY_CENTER;			
 			break;
 			case KEY_MENU:
 			handleKeyMenu();
 			lastKey = KEY_MENU;
 			break;
-			case KEY_PLAY_PAUSE:			
+			case KEY_PLAY_PAUSE:
+			handlePlayPause();
 			lastKey = KEY_PLAY_PAUSE;
 			break;
 			default:
@@ -131,34 +144,55 @@ void loop()
 		IRcode = 0;
 	}
 	
-	// print status every 500 ms and only when the home screen is showing
-	if (millis() - StatusMillis >= StatusUpdateInterval && gui.GUI_State == HomeScreen)
+	// Enter the input setting menu after the user pressed the center key for CenterKeyDuration time
+	if (CenterKeyCount * remoteDelay > CenterKeyDuration)
+	{		
+		CenterKeyCount = 0;
+		handleKeyMenu();
+	}	
+	
+	
+	// print status every StatusUpdateInterval (ms) and only when the home screen is showing
+	if (gui.GUI_State == HomeScreen && millis() - StatusMillis >= StatusUpdateInterval)
 	{
-		dac.getStatus();	
-		dac.getSampleRate();	
+		dac.getStatus();
+		dac.getSampleRate();
 		gui.sabreDAC = dac;
-		gui.printSampleRate(5, 2);
-		gui.printInputFormat(5, 3);
-		StatusMillis = millis();
+		gui.printSampleRate(0, 0);
+		gui.printInputFormat(4, 3);
+		statusUpdateCount++;
+		if (statusUpdateCount * StatusUpdateInterval > CenterKeyDuration)
+		{
+			statusUpdateCount = 0;	// reset counter
+			CenterKeyCount = 0;		// reset counter
+		}
+		StatusMillis = millis();		
 	}
 	
 } // end of Main Loop
 
+#pragma endregion MAIN_LOOP
+
+#pragma region IR_METHODS
 
 // sets the IR code
 void setIRcode()
-{	
+{
 	if (results.value == REPEAT)
 	{
 		IRcode = lastKey;	// make IRcode the same as the last valid IR code
 	}
 	else
-	{	
+	{
 		IRcode = (results.value >> 8) & 0xff;
 		IRcode = (IRcode << 1) & 0xff;
 	}
 }
 
+
+#pragma endregion IR_METHODS
+
+#pragma region IR_REMOTE_KEY_EVENTS
 
 void handleKeyUp()
 {
@@ -168,20 +202,20 @@ void handleKeyUp()
 		setVolume(INCREASE);
 		break;
 		case MainMenu:
-		gui.PrintSelectedInputSettings((gui.Setting -= 1) % SETTINGS_COUNT);
+		gui.PrintSelectedInputSettings(PREVIOUS_SETTING);
 		break;
-	}	
+	}
 }
 
 void handleKeyDown()
-{	
+{
 	switch (gui.GUI_State)
 	{
 		case HomeScreen:
 		setVolume(DECREASE);
 		break;
 		case MainMenu:
-		gui.PrintSelectedInputSettings((gui.Setting += 1) % SETTINGS_COUNT);		
+		gui.PrintSelectedInputSettings(NEXT_SETTING);
 		break;
 	}
 }
@@ -190,8 +224,8 @@ void handleKeyLeft()
 {
 	switch (gui.GUI_State)
 	{
-		case HomeScreen:			
-		setInput(-1);		
+		case HomeScreen:
+		setInput(-1);
 		break;
 		case MainMenu:
 		changeSetting(-1);
@@ -203,7 +237,7 @@ void handleKeyRight()
 {
 	switch (gui.GUI_State)
 	{
-		case HomeScreen:		
+		case HomeScreen:
 		setInput(+1);
 		break;
 		case MainMenu:
@@ -224,10 +258,29 @@ void handleKeyMenu()
 		case MainMenu:
 		dac.writeInputConfiguration(); // write settings to the EEPROM
 		gui.GUI_State -= 1;
-		gui.printHomeScreen(dac.SelectedInput, 99 - dac.Attenuation);
+		gui.printHomeScreen(dac.SelectedInput, dac.Attenuation);
+		gui.Setting = 0; // reset the Setting variable so the next time the menu starts at the first setting
 		break;
-	}	
+	}
 }
+
+void handlePlayPause()
+{
+	if (dac.Mute)
+	{		
+		dac.unMuteDACS();
+		gui.printLargeAttenuation(dac.Attenuation, LargeAttnuStartPos);		
+	}
+	else
+	{
+		dac.muteDACS();
+		gui.printLargeMuteSymbol(LargeAttnuStartPos);
+	}
+}
+
+#pragma endregion IR_REMOTE_KEY_EVENTS
+
+#pragma region VOLUME_INPUT_SETTING_METHODS
 
 // increases or decreases the volume
 void setVolume(byte value)
@@ -236,7 +289,7 @@ void setVolume(byte value)
 	{
 		if (dac.Attenuation > 0)
 		{
-			dac.setVolume(dac.Attenuation -= 1);			
+			dac.setVolume(dac.Attenuation -= 1);
 		}
 	}
 	else
@@ -246,32 +299,32 @@ void setVolume(byte value)
 			dac.setVolume(dac.Attenuation += 1);
 		}
 	}
-	gui.printLargeAttenuation(99 - dac.Attenuation, 13);
+	gui.printLargeAttenuation(dac.Attenuation, LargeAttnuStartPos);
 }
 
 void setInput(byte value)
-{		
-	dac.SelectedInput += value;		
+{
+	dac.SelectedInput += value;
 	// CORRECTION FOR INPUT SELECTION ERROR
 	if (dac.SelectedInput == 255)
 	{
-		dac.SelectedInput = NUMBER_OF_INPUTS -1;		
+		dac.SelectedInput = NUMBER_OF_INPUTS -1;
 	}
 	else if (dac.SelectedInput == NUMBER_OF_INPUTS)
 	{
-		dac.SelectedInput = 0;		
-	}	
+		dac.SelectedInput = 0;
+	}
 	// END CORRECTION
-		
-	dac.selectInput(dac.SelectedInput);	
+	
+	dac.selectInput(dac.SelectedInput);
 	gui.sabreDAC = dac;
 	gui.printInputName(0, 0);
-	gui.printLargeInput(dac.SelectedInput, 0);	
+	gui.printLargeInput(dac.SelectedInput, 0);
 	dac.writeSelectedInput();
 }
 
 void changeSetting(int value)
-{	
+{
 	switch (gui.Setting % SETTINGS_COUNT)
 	{
 		case 0:
@@ -337,8 +390,7 @@ void changeSetting(int value)
 		gui.sabreDAC = dac;
 		gui.printDeemphFilterSetting(1, 1);
 		break;
-		
 	}
-	
-	
 }
+
+#pragma endregion VOLUME_INPUT_SETTING_METHODS
