@@ -6,7 +6,6 @@
 * Author: CE-Designs
 */
 
-
 #ifndef __SABRE_H__
 #define __SABRE_H__
 
@@ -15,8 +14,15 @@
 #else
 #include <WProgram.h>
 #endif
+
+#pragma region HEADER_FILE_INCLUSIONS
+
 #include "Wire.h"
 #include "EEPROM.h"
+
+#pragma endregion HEADER_FILE_INCLUSIONS
+
+#pragma region #DEFINE_DIRECTIVES
 
 #define INPUT_NAME_SIZE 8
 #define NUMBER_OF_INPUTS 6
@@ -31,52 +37,54 @@
 //// END OF EEPROM LOCATIONS ///
 
 #define FIRST_RUN 0x03 		// this is just a flag for indicating that it's not the first run
-
 #define DEFAULT_ATTNU 49  	// 49 decibel attenuation by default
-	
-template <class T> int EEPROM_writeAnything(int ee, const T& value)
-{
-	const byte* p = (const byte*)(const void*)&value;
-	unsigned int i;
-	byte currValue;
-	
-	for (i = 0; i < sizeof(value); i++)
-	{
-		currValue = EEPROM.read(ee);
-		if (currValue != *p)
-		{
-			EEPROM.write(ee++, *p++);
-		}
-		else
-		{
-			ee++;
-			*p++;
-		}
-	}
-	return i;
-}
 
-template <class T> int EEPROM_readAnything(int ee, T& value)
-{
-	byte* p = (byte*)(void*)&value;
-	unsigned int i;
-	for (i = 0; i < sizeof(value); i++)
-	{
-		*p++ = EEPROM.read(ee++);
-	}	
-	return i;
-}
+// WIRE FOR I2C		
+#define WIRE Wire
+
+//REGISTERS///////////////////////////////////////////////////////////////
+#define REG0 0X00	// Volume of DAC0
+#define REG1 0X01	// Volume of DAC1
+#define REG2 0X02	// Volume of DAC2
+#define REG3 0X03	// Volume of DAC3
+#define REG4 0X04	// Volume of DAC4
+#define REG5 0X05	// Volume of DAC5
+#define REG6 0X06	// Volume of DAC6
+#define REG7 0X07	// Volume of DAC7
+#define REG8 0x08	// Automute_lev
+#define REG9 0x09	// Automute_time
+#define REG10 0x0A	// Mode Control 1
+#define REG11 0x0B	// Mode Control 2
+#define REG12 0x0C	// Mode Control 3: Dither control, Notch delay
+#define REG13 0x0D	// DAC Polarity
+#define REG14 0x0E	// DAC3/4/7/8 Source, Differential Mode, IRR Bandwidth, FIR Rolloff
+#define REG15 0x0F	// Mode Control 4: Quantizer settings
+#define REG16 0x10	// Automute Loopback
+#define REG17 0x11	// Mode Control 5
+#define REG18 0x12	// SPDIF Source
+#define REG19 0x13	// DACB Polarity
+#define REG23 0x17	// >Master Trim (MSB's)
+#define REG22 0x16	// >Master Trim
+#define REG21 0x15	// >Master Trim
+#define REG20 0x14	// >Master Trim (LSB's)
+#define REG24 0x18	// Phase Shift
+#define REG25 0x19	// DPLL Mode Control
+#define REG27 0x1B	// Status
+#define REG31 0x1F	// >DPLL_NUM (MSB's)
+#define REG30 0x1E	// >DPLL_NUM
+#define REG29 0x1D	// >DPLL_NUM
+#define REG28 0x1C	// >DPLL_NUM (LSB's)
+//END REGISTERS///////////////////////////////////////////////////////////
+		
+#pragma endregion #DEFINE_DIRECTIVES
 
 class Sabre
 {
-	//variables
 	public:
-
-	bool dualMono;
+		
+#pragma region REGISTER ENUMS
 	
-	char SampleRateString[SR_LENGTH];
-	
-	enum SPDIF_Enable
+enum SPDIF_Enable
 	{
 		useI2SorDSD, useSPDIF
 	};
@@ -198,17 +206,28 @@ class Sabre
 		UseDPLLBandwidthSetting, MultiplyDPLLBandwidthBy128
 	};
 	
-	uint8_t Attenuation;		// hold the current attenuation (volume)
-	uint8_t SelectedInput;		// holds the current selected input
-	uint8_t DefaultAttenuation;	// Default attenuation at start (volume)
-	bool Mute;					// holds the current mute state
+#pragma endregion REGISTER ENUMS
 	
-	struct config_t	// Holds the configuration of all inputs
+#pragma region PUBLIC VARIABLES
+
+	bool dualMono;
+	uint8_t Attenuation;			// hold the current attenuation (volume)
+	uint8_t SelectedInput;			// holds the current selected input
+	uint8_t DefaultAttenuation;		// Default attenuation at start (volume)
+	bool Mute;						// holds the current mute state
+	unsigned long getSampleRate();	// Retrieve DPLL_NUM, calculate sample rate and file the SampleRateString char array
+	unsigned long SampleRate;		// holds the calculated sample rate
+	
+#pragma endregion PUBLIC VARIABLES
+	
+#pragma region STRUCTS
+
+	struct config_t	// Holds the configuration of each of the configured inputs
 	{
-		// NON-DAC RELATED INPUT SETTINGS
+		// NON DAC-REGISTER RELATED INPUT SETTINGS
 		char INPUT_NAME[INPUT_NAME_SIZE];
 		uint8_t INPUT_ENABLED;
-		// DAC SETTINGS FROM THE INPUT
+		// DAC REGISTER SETTINGS OF THE INPUT
 		uint8_t SPDIF_SOURCE;
 		uint8_t FIR_FILTER;
 		uint8_t IIR_BANDWIDTH;
@@ -220,13 +239,14 @@ class Sabre
 		uint8_t DPLL_BW_DEFAULTS;
 		uint8_t NOTCH_DELAY;
 		uint8_t SERIAL_DATA_MODE;
-		uint8_t	BIT_MODE;			// use16bit, use20bit, use24bit or use 32bit
+		uint8_t	BIT_MODE;			
 		uint8_t JITTER_REDUCTION;
 		uint8_t DEEMPH_FILTER;
 		uint8_t DE_EMPHASIS_SELECT;
 		uint8_t OSF_FILTER;
 		uint8_t AUTO_DEEMPH;
-	} Config[NUMBER_OF_INPUTS + 1];
+		// END OF DAC SETTINGS
+	} Config[NUMBER_OF_INPUTS + 1];		
 	
 	struct Register17
 	{
@@ -246,14 +266,14 @@ class Sabre
 		bool SPDIF_Enabled;
 		bool Lock;
 	}Status;
+			
+#pragma endregion STRUCTS
 		
-	
-	unsigned long getSampleRate();	// Retrieve DPLL_NUM, calculate sample rate and file the SampleRateString char array
-	unsigned long SampleRate;		// holds the calculated sample rate
-	
 	protected:
 	
 	private:
+
+#pragma region PRIVATE VARIABLES
 
 	unsigned long Fcrystal;	// Clock Frequency (MHz)
 	
@@ -280,10 +300,18 @@ class Sabre
 	bool firstRun();	// for checking if it is the first run of the controller
 	bool manual;		// for indicating: manual settings selection or use default settings
 	
+#pragma endregion PRIVATE VARIABLES
+	
 	//functions
 	public:
 	
+#pragma region CONTRUCTOR
+
 	Sabre();
+	
+#pragma endregion CONTRUCTOR
+	
+#pragma region PUBLIC METHODS
 	
 	virtual void begin(bool DualMono, uint8_t F_crystal);
 	
@@ -327,10 +355,14 @@ class Sabre
 	void writeDefaultAttenuation();
 	
 	void selectInput(uint8_t input);
+	
+#pragma endregion PUBLIC METHODS
 		
 
 	protected:
 	private:
+	
+#pragma region PRIVATE METHODS
 	
 	void writeSabreReg(uint8_t regAddr, uint8_t value);
 	void writeReg(uint8_t dacAddr, uint8_t regAddr, uint8_t value);
@@ -346,9 +378,8 @@ class Sabre
 	void setRegisterDefaults(); 	
 	void resetInputNames();
 	
+#pragma endregion PRIVATE METHODS
 	
-	//Sabre( const Sabre &c );
-	//Sabre& operator=( const Sabre &c );
 	
 }; //Sabre
 

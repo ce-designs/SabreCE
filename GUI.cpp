@@ -16,8 +16,6 @@
 #include "Sabre.h"
 
 
-
-
 // default constructor
 GUI::GUI(uint8_t rs, uint8_t rw, uint8_t enable, uint8_t d4, uint8_t d5, uint8_t d6, uint8_t d7)
 {
@@ -29,7 +27,7 @@ void GUI::start()
 {		
 	GUI_State = HomeScreen;
 	OLED.begin(20, 4);	// initialize the 20x4 OLED		
-	this->Setting = 0;
+	this->SelectedInputSetting = 0;
 	this->CursorPosition = 0;
 	this->TimerEnabled = false;
 }
@@ -208,8 +206,6 @@ void GUI::printInputFormat(uint8_t col, uint8_t row)
 	}
 }
 
-///DEFAULT SCREEN/MENU PRINTING////////////////////
-
 void GUI::printHomeScreen(uint8_t selectedInput, uint8_t attenuation)
 {
 	OLED.defineCustomChar0();					// restore custom character 0
@@ -239,27 +235,28 @@ void GUI::printHomeScreen(uint8_t selectedInput, uint8_t attenuation)
 		printInputFormat(4, 3);
 		break;
 	}
+	
+	this->GUI_State = HomeScreen;
 }
 
 void GUI::printInputSettingsMenu(uint8_t selectedInput)
 {	
-	OLED.defineUpwardsArrowChar(UPWARDS_ARROW);
-	OLED.defineDownwardsArrowChar(DOWNWARDS_ARROW);	
-	OLED.defineLockedChar(LOCK_SYMBOL);
-	OLED.clear();
+	PrepareForMenuPrinting();					// defines new custom chars and clears the display
 	String input = "INPUT";
-	printTitleBar(input + (selectedInput + 1));		// print Input Settings Menu: Print title bar with the selected input	
+	printTitleBar(input + (selectedInput + 1));	// print Input Settings Menu: Print title bar with the selected input	
 	PrintSelectedInputSettings(255);			// print all the select input related settings
 	OLED.setCursor(0, 1);
 	OLED.write(0x7E);							// Print arrow to indicate the selected setting
 	OLED.setCursor(19,3);
 	OLED.write(1);
+	
+	this->GUI_State = InputSettingsMenu;
 }
 
 void GUI::PrintSelectedInputSettings(uint8_t value)
 {
-	SetPointerValue(value, &this->Setting, SETTINGS_COUNT);		// set the correct value for the setting variable
-	switch (this->Setting)	
+	SetPointerValue(value, &this->SelectedInputSetting, SETTINGS_COUNT);	// set the correct value for the setting variable
+	switch (this->SelectedInputSetting)	
 	{
 		case 0:
 		printInputNameSetting(1, 1);
@@ -341,6 +338,13 @@ void GUI::PrintSelectedInputSettings(uint8_t value)
 	}
 }
 
+void GUI::PrepareForMenuPrinting()
+{
+	OLED.defineUpwardsArrowChar(UPWARDS_ARROW);
+	OLED.defineDownwardsArrowChar(DOWNWARDS_ARROW);
+	OLED.defineLockedChar(LOCK_SYMBOL);
+	OLED.clear();
+}
 
 void GUI::printEmptyRow(uint8_t row)
 {
@@ -724,8 +728,10 @@ void GUI::SetPointerValue(uint8_t value, uint8_t *pointerValue, uint8_t maxValue
 
 void GUI::printSelectedChar()
 {
+	cli();
 	OLED.setCursor(5 + this->CursorPosition, 1);
 	OLED.write(sabreDAC.Config[sabreDAC.SelectedInput % NUMBER_OF_INPUTS].INPUT_NAME[this->CursorPosition -1]);	
+	sei();
 }
 
 bool GUI::InputNameEditMode()
@@ -738,6 +744,7 @@ void GUI::printNextChar()
 	cli();
 	OLED.setCursor(5 + this->CursorPosition, 1);
 	uint8_t i = sabreDAC.Config[sabreDAC.SelectedInput % NUMBER_OF_INPUTS].INPUT_NAME[this->CursorPosition -1] + 1;
+	if (i == 0x80) i = 0x20;
 	sabreDAC.Config[sabreDAC.SelectedInput % NUMBER_OF_INPUTS].INPUT_NAME[this->CursorPosition -1] = i;
 	OLED.write(i);
 	sei();
@@ -748,6 +755,7 @@ void GUI::PrintPreviousChar()
 	cli();
 	OLED.setCursor(5 + this->CursorPosition, 1);
 	uint8_t i = sabreDAC.Config[sabreDAC.SelectedInput % NUMBER_OF_INPUTS].INPUT_NAME[this->CursorPosition -1] - 1;
+	if (i == 0x1F) i = 0x7F;
 	sabreDAC.Config[sabreDAC.SelectedInput % NUMBER_OF_INPUTS].INPUT_NAME[this->CursorPosition -1] = i;
 	OLED.write(i);
 	sei();
@@ -756,11 +764,29 @@ void GUI::PrintPreviousChar()
 void GUI::stopInputNameEditMode()
 {
 	cli();
-	TCCR1A = 0;// set entire TCCR1A register to 0
-	TCCR1B = 0;// same for TCCR1B
+	TCCR1A = 0;	// set TCCR1A register to 0
+	TCCR1B = 0;	// same for TCCR1B
 	sei();
 	this->TimerEnabled = false;
 }
+
+void GUI::printMainMenu()
+{
+	PrepareForMenuPrinting();					// defines new custom chars and clears the display
+	OLED.setCursor(0, 0);
+	printTitleBar("MENU");
+	OLED.setCursor(0, 1);
+	OLED.write(0x7E);							// Print arrow to indicate the selected setting
+	OLED.print("Audio Presets");	
+	OLED.setCursor(1, 2);
+	OLED.print("Display Settings");
+	OLED.setCursor(1, 3);
+	OLED.print("Date & Time");
+	
+	this->GUI_State = MainMenu;
+}
+
+
 
 
 

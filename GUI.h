@@ -33,11 +33,13 @@ class GUI : public CharacterOLED, public Sabre
 	uint8_t GUI_State;		// for holding the current GUI state and the corresponding GUI sub state
 	uint8_t GUI_Substate;	// for holding the corresponding GUI sub state
 	
-	uint8_t Setting;
+	uint8_t SelectedInputSetting;
 	
 	bool InputNameEditMode();	
 	
 	Sabre sabreDAC;
+	
+	
 	
 	protected:
 		
@@ -49,16 +51,23 @@ class GUI : public CharacterOLED, public Sabre
 		uint8_t mainMenu;
 		
 	}guiConfig;
-	
+		
 	enum GUI_states
 	{
-		HomeScreen, MainMenu, InputSettingsMenu, DacSettingsMenu, DateTimeMenu, DisplayMenu
+		HomeScreen, InputSettingsMenu, MainMenu
 	};
 	
-	enum HomeScreen_subStates
+	enum HomeScreen_States
 	{
 		DefaultHS, NoVolumeNumbersHS, NoInputNumberHS
 	};
+	
+	enum MainMenu_States
+	{
+		PresetsMenu, DisplayMenu, DateTimeMenu
+	};
+	
+	
 
 	uint8_t CursorPosition;	// holds the cursor position when changing a input name
 	bool TimerEnabled;
@@ -93,7 +102,12 @@ class GUI : public CharacterOLED, public Sabre
 	
 	void printHomeScreen(uint8_t selectedInput, uint8_t attenuation);
 	void printInputSettingsMenu(uint8_t selectedInput);
+
+	void PrepareForMenuPrinting();
+
 	void PrintSelectedInputSettings(uint8_t value);
+	
+	void printMainMenu();
 	
 	void printEmptyRow(uint8_t row);
 	void printLockSymbol(uint8_t col, uint8_t row);

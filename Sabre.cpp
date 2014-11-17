@@ -15,42 +15,43 @@
 #include "Wire.h"
 #include "EEPROM.h"
 
-#define WIRE Wire
 
-//REGISTERS///////////////////////////////////////////////////////////////
-#define REG0 0X00	// Volume of DAC0
-#define REG1 0X01	// Volume of DAC1
-#define REG2 0X02	// Volume of DAC2
-#define REG3 0X03	// Volume of DAC3
-#define REG4 0X04	// Volume of DAC4
-#define REG5 0X05	// Volume of DAC5
-#define REG6 0X06	// Volume of DAC6
-#define REG7 0X07	// Volume of DAC7
-#define REG8 0x08	// Automute_lev
-#define REG9 0x09	// Automute_time
-#define REG10 0x0A	// Mode Control 1
-#define REG11 0x0B	// Mode Control 2
-#define REG12 0x0C	// Mode Control 3: Dither control, Notch delay
-#define REG13 0x0D	// DAC Polarity
-#define REG14 0x0E	// DAC3/4/7/8 Source, Differential Mode, IRR Bandwidth, FIR Rolloff
-#define REG15 0x0F	// Mode Control 4: Quantizer settings
-#define REG16 0x10	// Automute Loopback
-#define REG17 0x11	// Mode Control 5
-#define REG18 0x12	// SPDIF Source
-#define REG19 0x13	// DACB Polarity
-#define REG23 0x17	// >Master Trim (MSB's)
-#define REG22 0x16	// >Master Trim
-#define REG21 0x15	// >Master Trim
-#define REG20 0x14	// >Master Trim (LSB's)
-#define REG24 0x18	// Phase Shift
-#define REG25 0x19	// DPLL Mode Control
-#define REG27 0x1B	// Status
-#define REG31 0x1F	// >DPLL_NUM (MSB's)
-#define REG30 0x1E	// >DPLL_NUM
-#define REG29 0x1D	// >DPLL_NUM
-#define REG28 0x1C	// >DPLL_NUM (LSB's)
+#pragma region EEPROM_ANYTHING_METHODS
 
-//END REGISTERS///////////////////////////////////////////////////////////
+template <class T> int EEPROM_writeAnything(int ee, const T& value)
+{
+	const byte* p = (const byte*)(const void*)&value;
+	unsigned int i;
+	byte currValue;
+	
+	for (i = 0; i < sizeof(value); i++)
+	{
+		currValue = EEPROM.read(ee);
+		if (currValue != *p)
+		{
+			EEPROM.write(ee++, *p++);
+		}
+		else
+		{
+			ee++;
+			*p++;
+		}
+	}
+	return i;
+}
+
+template <class T> int EEPROM_readAnything(int ee, T& value)
+{
+	byte* p = (byte*)(void*)&value;
+	unsigned int i;
+	for (i = 0; i < sizeof(value); i++)
+	{
+		*p++ = EEPROM.read(ee++);
+	}
+	return i;
+}
+
+#pragma endregion EEPROM_ANYTHING_METHODS
 
 // default constructor
 Sabre::Sabre()
@@ -1052,12 +1053,8 @@ void Sabre::readInputConfiguration()
 	int location = 0;
 	for (uint8_t i = 0; i < NUMBER_OF_INPUTS; i++)
 	{
-		location += EEPROM_readAnything(location, this->Config[i]);	
-		
+		location += EEPROM_readAnything(location, this->Config[i]);			
 	}	
-	
-	
-	
 }
 
 void Sabre::applyInputConfiguration(uint8_t input)

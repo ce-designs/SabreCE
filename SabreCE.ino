@@ -64,9 +64,10 @@ const byte LargeAttnuStartPos = 13;	// the start position for printing the large
 
 #pragma region ENUMS
 
+// must be the exact same as in the GUI header file!
 enum GUI_states
 {
-	HomeScreen, InputSettingsMenu, MainMenu, DacSettingsMenu, DateTimeMenu, DisplayMenu
+	HomeScreen, InputSettingsMenu, MainMenu
 };
 
 #pragma endregion ENUMS
@@ -79,10 +80,8 @@ void setup()
 	
 	Wire.begin();			// join the I2C bus
 	dac.begin(false, 100);	// true = dual mono mode | false = stereo mode, Clock frequency (MHz)
-
 	
 	irrecv.enableIRIn();		// Start the receiver
-	
 	
 	gui.start();		// Start the user interface + initialize the display
 	gui.sabreDAC = dac;
@@ -262,8 +261,7 @@ void handleKeyCenter()
 	if (CenterKeyCount * remoteDelay > CenterKeyDuration)
 	{
 		CenterKeyCount = 0;	// reset counter
-		gui.sabreDAC = dac;
-		gui.GUI_State = InputSettingsMenu;
+		gui.sabreDAC = dac;		
 		gui.printInputSettingsMenu(dac.SelectedInput);
 	}
 		
@@ -275,9 +273,12 @@ void handleKeyMenu()
 	switch (gui.GUI_State)
 	{
 		case HomeScreen:
+		// Enter the Main Menu
+		gui.printMainMenu();
 		
 		break;
 		case InputSettingsMenu:
+		// Save settings and return to the HomeScreen
 		if (gui.InputNameEditMode())
 		{
 			// stop edit mode and timer
@@ -286,9 +287,12 @@ void handleKeyMenu()
 			dac.Config[dac.SelectedInput] = gui.sabreDAC.Config[dac.SelectedInput];		
 		}
 		dac.writeInputConfiguration(); // write settings to the EEPROM
-		gui.GUI_State = HomeScreen;
+		gui.SelectedInputSetting = 0; // reset the Setting variable so the next time the menu starts at the first setting
 		gui.printHomeScreen(dac.SelectedInput, dac.Attenuation);
-		gui.Setting = 0; // reset the Setting variable so the next time the menu starts at the first setting
+		break;
+		case MainMenu:
+		// Save settings and return to the HomeScreen
+		gui.printHomeScreen(dac.SelectedInput, dac.Attenuation);	
 		break;
 	}
 }
@@ -354,7 +358,7 @@ void setInput(byte value)
 
 void changeInputSetting(int value)
 {
-	switch (gui.Setting % SETTINGS_COUNT)
+	switch (gui.SelectedInputSetting % SETTINGS_COUNT)
 	{
 		case 0:
 		if (value == -1) value = PREVIOUS;		
