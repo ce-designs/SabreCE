@@ -84,124 +84,124 @@ class Sabre
 		
 #pragma region REGISTER ENUMS
 	
-enum SPDIF_Enable
+	enum SPDIF_ENABLE
 	{
 		useI2SorDSD, useSPDIF
 	};
-	
-	enum DPLL
+
+	enum DPLL_BANDWIDTH
 	{
 		DPLL_NoBandwidth, DPLL_Lowest, DPLL_Low, DPLL_MedLow, DPLL_Medium,
 		DPLL_MedHigh, DPLL_High, DPLL_Highest, DPLL_Best
 	};
-	
-	enum BitModes
+
+	enum BIT_MODE
 	{
 		BitMode16, BitMode20, BitMode24, BitMode32
 	};
-	
-	enum serialDataModes
+
+	enum SERIAL_DATA_MODE
 	{
 		I2S, LJ, RJ
 	};
-	
-	enum JitterReductionEnable
+
+	enum JITTER_REDUCTION_ENABLE
 	{
 		UseJitterReduction, BypassJitterReduction
 	};
-	
-	enum DeemphasisFilter
+
+	enum DEEMPHASIS_FILTER
 	{
 		UseDeemphasisFilter, BypassDeemphasisFilter
 	};
-	
-	enum DeEmphasisDelect
+
+	enum DEEMPHASIS_SELECT
 	{
 		AutoDeemphasis, f32kHz, f44_1kHz, f48kHz
 	};
-	
-	enum NotchDelay
+
+	enum NOTCH_DELAY
 	{
 		NoNotch, MCLK4, MCLK8, MCLK16, MCLK32, MCLK64
 	};
-	
-	enum DacPolarity
+
+	enum DAC_POLARITY
 	{
 		InPhase, AntiPhase, TpaPhaseDualMonoOnly
 	};
-	
-	enum SourceOfDAC
+
+	enum SOURCE_OF_DAC
 	{
 		DAC1, DAC2, DAC3, DAC4, DAC5, DAC6, DAC7, DAC8
 	};
 
-	enum DifferentialMode
+	enum DIFFERENTIAL_MODE
 	{
 		trueDiff, pseudoDiff
 	};
-	
-	enum IIR_Bandwidth
+
+	enum IIR_BANDWIDTH
 	{
 		normalIIR, use50K, use60K, use70K
 	};
-	
+
 	enum FIR_ROLLOFF_SPEED
 	{
 		FastRolloff, SlowRolloff
 	};
-	
-	enum Quantizer
+
+	enum QUANTIZER
 	{
 		use6BitsTrue, use7BitsTrue, use7BitsPseudo,
 		use8BitsTrue, use8BitsPseudo, use9BitsPseudo
 	};
-	
-	enum MonoChannelSelect
+
+	enum MONO_CHANNEL_SELECT
 	{
 		useLeftChannelInAllMonoMode, useRightChannelInAllMonoMode
 	};
-	
-	enum OSFfilter
+
+	enum OVERSAMPLING_FILTER
 	{
 		useOSFfiler, bypassOSFfilter
 	};
-	
-	enum AutoDeemph
+
+	enum AUTO_DEEMPHASIS
 	{
 		useAutoDeemph, bypassAutoDeemph
 	};
-	
-	enum spdifAutoDetect
+
+	enum SPDIF_AUTO_DETECT
 	{
 		autoDetectSPDIF, manuallySelectSPDIF
 	};
-	
-	enum FIRlength
+
+	enum FIR_LENGTH
 	{
 		use28Coefficients, use27Coefficients
 	};
-	
-	enum FinPhaseFlip
+
+	enum FIN_PHASE_FLIP
 	{
 		invertPhase, DoNotInvertPhase
 	};
-	
-	enum OutputMode
+
+	enum OUTPUT_MODE
 	{
 		NormalMode, AllMonoMode
 	};
-	
-	enum SPDIFsource
+
+	enum SPDIF_SOURCE
 	{
 		Data1, Data2, Data3, Data4, Data5, Data6, Data7, Data8
 	};
-	
-	enum dpll_bw_defaults
+
+	enum DPLL_BW_DEFAULT
 	{
 		UseBestDPLLSettings, AllowAllDPLLSettings
 	};
-	
-	enum dpll_bw_128x
+
+	enum DPLL_BW_128X
 	{
 		UseDPLLBandwidthSetting, MultiplyDPLLBandwidthBy128
 	};

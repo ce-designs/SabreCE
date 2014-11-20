@@ -67,7 +67,10 @@ class GUI : public CharacterOLED, public Sabre
 		PresetsMenu, DisplayMenu, DateTimeMenu
 	};
 	
-	
+	enum Dac_Setting
+	{
+		InputName, FirFilter, IIRBandwidth, NotchDelay, Quantizer, DpllBandwidth, DpllBw128, OverSamplingFilter, InputFormat, SerialDataMode, SpdifSource, BitMode, AutoDeemphasis
+	};
 
 	uint8_t CursorPosition;	// holds the cursor position when changing a input name
 	bool TimerEnabled;
@@ -106,6 +109,7 @@ class GUI : public CharacterOLED, public Sabre
 	void PrepareForMenuPrinting();
 
 	void PrintSelectedInputSettings(uint8_t value);
+	void PrintSelectedInputSettings(uint8_t value, int code);
 	
 	void printMainMenu();
 	

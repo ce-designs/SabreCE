@@ -239,11 +239,17 @@ void GUI::printHomeScreen(uint8_t selectedInput, uint8_t attenuation)
 	this->GUI_State = HomeScreen;
 }
 
+
+
 void GUI::printInputSettingsMenu(uint8_t selectedInput)
 {	
 	PrepareForMenuPrinting();					// defines new custom chars and clears the display
 	String input = "INPUT";
 	printTitleBar(input + (selectedInput + 1));	// print Input Settings Menu: Print title bar with the selected input	
+	
+	
+	//PrintSelectedInputSettings(255, );		// print all activated input settings
+	
 	PrintSelectedInputSettings(255);			// print all the select input related settings
 	OLED.setCursor(0, 1);
 	OLED.write(0x7E);							// Print arrow to indicate the selected setting
@@ -251,6 +257,73 @@ void GUI::printInputSettingsMenu(uint8_t selectedInput)
 	OLED.write(1);
 	
 	this->GUI_State = InputSettingsMenu;
+}
+
+void GUI::PrintSelectedInputSettings(uint8_t value, int code)
+{
+	SetPointerValue(value, &this->SelectedInputSetting, SETTINGS_COUNT);	// set the correct value for the setting variable
+	
+	uint8_t row = 1;
+	uint8_t col = 1;
+		
+	for (uint8_t i = this->SelectedInputSetting; i < SETTINGS_COUNT; i++)
+	{
+		if (bitRead(code, i))
+		{			
+			switch (i)
+			{
+				case InputName:
+				printInputNameSetting(col, row);
+				break;
+				case FirFilter:
+				printFIRsetting(col, row);
+				break;
+				case IIRBandwidth:
+				printIIRsetting(col, row);
+				break;
+				case NotchDelay:
+				printNotchSetting(col, row);
+				break;
+				case Quantizer:
+				printQuantizerSetting(col, row);
+				break;
+				case DpllBandwidth:
+				printDPLLbandwidthSetting(col, row);
+				break;
+				case DpllBw128:
+				printDPLLmultiplierSetting(col, row);
+				break;
+				case OverSamplingFilter:
+				printOSFfilterSetting(col, row);
+				break;
+				case InputFormat:
+				printSPDIFenableSetting(col, row);
+				break;
+				case SerialDataMode:
+				printSerialDataModeSetting(col, row);
+				break;
+				case SpdifSource:
+				printSPDIFsourceSetting(col, row);
+				break;
+				case BitMode:
+				printBitmodeSetting(col, row);
+				break;
+				case AutoDeemphasis:
+				printDeemphFilterSetting(col, row);		
+				break;
+				default:
+				printEmptyRow(row);
+				break;
+			}					
+			row++;
+			if (row > 3) break;	// stop printing
+		}		
+	}
+		
+	for (uint8_t i = row; i < 4; i++)
+	{
+		printEmptyRow(i);
+	}
 }
 
 void GUI::PrintSelectedInputSettings(uint8_t value)
