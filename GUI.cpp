@@ -248,9 +248,9 @@ void GUI::printInputSettingsMenu(uint8_t selectedInput)
 	printTitleBar(input + (selectedInput + 1));	// print Input Settings Menu: Print title bar with the selected input	
 	
 	
-	//PrintSelectedInputSettings(255, );		// print all activated input settings
+	PrintSelectedInputSettings(255, 8191);		// print all activated input settings
 	
-	PrintSelectedInputSettings(255);			// print all the select input related settings
+	//PrintSelectedInputSettings(255);			// print all the select input related settings
 	OLED.setCursor(0, 1);
 	OLED.write(0x7E);							// Print arrow to indicate the selected setting
 	OLED.setCursor(19,3);
@@ -261,7 +261,7 @@ void GUI::printInputSettingsMenu(uint8_t selectedInput)
 
 void GUI::PrintSelectedInputSettings(uint8_t value, int code)
 {
-	SetPointerValue(value, &this->SelectedInputSetting, SETTINGS_COUNT);	// set the correct value for the setting variable
+	SetPointerValue(value, &this->SelectedInputSetting, SETTINGS_COUNT - 1);	// set the correct value for the setting variable
 	
 	uint8_t row = 1;
 	uint8_t col = 1;
@@ -319,11 +319,11 @@ void GUI::PrintSelectedInputSettings(uint8_t value, int code)
 			if (row > 3) break;	// stop printing
 		}		
 	}
-		
 	for (uint8_t i = row; i < 4; i++)
 	{
 		printEmptyRow(i);
-	}
+	}	
+	
 }
 
 void GUI::PrintSelectedInputSettings(uint8_t value)
