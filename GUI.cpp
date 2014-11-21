@@ -27,7 +27,8 @@ void GUI::start()
 {		
 	GUI_State = HomeScreen;
 	OLED.begin(20, 4);	// initialize the 20x4 OLED		
-	this->SelectedInputSetting = 0;
+	this->SelectedInputSetting = InputName;
+	this->SelectedMenu = PresetsMenu;
 	this->CursorPosition = 0;
 	this->TimerEnabled = false;
 }
@@ -248,18 +249,18 @@ void GUI::printInputSettingsMenu(uint8_t selectedInput)
 	printTitleBar(input + (selectedInput + 1));	// print Input Settings Menu: Print title bar with the selected input	
 	
 	
-	PrintSelectedInputSettings(255, 8191);		// print all activated input settings
+	printSelectedInputSettings(255, 8191);		// print all activated input settings
 	
 	//PrintSelectedInputSettings(255);			// print all the select input related settings
-	OLED.setCursor(0, 1);
-	OLED.write(0x7E);							// Print arrow to indicate the selected setting
+	printPointer();
+	
 	OLED.setCursor(19,3);
 	OLED.write(1);
 	
 	this->GUI_State = InputSettingsMenu;
 }
 
-void GUI::PrintSelectedInputSettings(uint8_t value, int code)
+void GUI::printSelectedInputSettings(uint8_t value, int code)
 {
 	SetPointerValue(value, &this->SelectedInputSetting, SETTINGS_COUNT - 1);	// set the correct value for the setting variable
 	
@@ -326,7 +327,7 @@ void GUI::PrintSelectedInputSettings(uint8_t value, int code)
 	
 }
 
-void GUI::PrintSelectedInputSettings(uint8_t value)
+void GUI::printSelectedInputSettings(uint8_t value)
 {
 	SetPointerValue(value, &this->SelectedInputSetting, SETTINGS_COUNT);	// set the correct value for the setting variable
 	switch (this->SelectedInputSetting)	
@@ -856,7 +857,15 @@ void GUI::printMainMenu()
 	OLED.setCursor(1, 3);
 	OLED.print("Date & Time");
 	
+	printPointer();
+	
 	this->GUI_State = MainMenu;
+}
+
+void GUI::printPointer()
+{
+	OLED.setCursor(0, 1);
+	OLED.write(0x7E);							// Print arrow to point out the selected menu or setting
 }
 
 

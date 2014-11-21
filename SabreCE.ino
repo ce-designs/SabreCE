@@ -56,7 +56,7 @@ const byte remoteDelay = 140;	// Delay in milliseconds after each key press of t
 
 const unsigned int CenterKeyDuration = 1000;	//  Time in milliseconds that the center key needs to be pressed before it invokes a method
 
-const unsigned int StatusUpdateInterval = 500;	// the interval between each status update
+const unsigned int StatusUpdateInterval = 1000;	// the interval between each status update
 
 const byte LargeAttnuStartPos = 13;	// the start position for printing the large attenuation 
 
@@ -202,7 +202,7 @@ void handleKeyUp()
 		}
 		else
 		{
-			gui.PrintSelectedInputSettings(PREVIOUS);
+			gui.printSelectedInputSettings(PREVIOUS, 8191);
 		}		
 		break;
 	}
@@ -222,7 +222,7 @@ void handleKeyDown()
 		}
 		else
 		{
-			gui.PrintSelectedInputSettings(NEXT);
+			gui.printSelectedInputSettings(NEXT, 8191);
 		}		
 		break;
 	}

@@ -34,6 +34,7 @@ class GUI : public CharacterOLED, public Sabre
 	uint8_t GUI_Substate;	// for holding the corresponding GUI sub state
 	
 	uint8_t SelectedInputSetting;
+	uint8_t SelectedMenu;
 	
 	bool InputNameEditMode();	
 	
@@ -108,11 +109,12 @@ class GUI : public CharacterOLED, public Sabre
 
 	void PrepareForMenuPrinting();
 
-	void PrintSelectedInputSettings(uint8_t value);
-	void PrintSelectedInputSettings(uint8_t value, int code);
+	void printSelectedInputSettings(uint8_t value);
+	void printSelectedInputSettings(uint8_t value, int code);
 	
 	void printMainMenu();
 	
+	void printPointer();
 	void printEmptyRow(uint8_t row);
 	void printLockSymbol(uint8_t col, uint8_t row);
 	
@@ -136,3 +138,5 @@ class GUI : public CharacterOLED, public Sabre
 }; //GUI
 
 #endif //__GUI_H__
+
+
