@@ -1,7 +1,7 @@
 SabreCE
 =======
 
-For controlling a Sabre DAC with the CE644 development board v1.3 in combination with a Newhaven character OLED not for sale!). The user interface and DAC can be controlled with any Apple remote, 5 push buttons or with both at the same time :)
+For controlling a Sabre DAC with the CE644 development board v1.3 in combination with a Newhaven character OLED not for sale!). The user interface and DAC can be controlled with any Apple remote, 5 push buttons or using both at the same time :)
 
 This repository contains:
   - A Sabre library for controling a ES9018 DAC from ESS.
