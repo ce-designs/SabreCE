@@ -13,7 +13,7 @@ This repository contains:
   - A DS1307 library for interfacing the DS1307 RTC.
   - A modified version of EEPROMWriteAnything
 
-Still under developed!
+Still under development!
 
   
 In theory the code can also be used with Arduino Mega or similar development boards, but not without changing some parts of the code.
