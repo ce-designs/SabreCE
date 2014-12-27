@@ -19,27 +19,28 @@
 
 #include "Wire.h"
 #include "EEPROM.h"
+#include "EEPROM_Anything.h"
+#include "Helper.h"
 
 #pragma endregion HEADER_FILE_INCLUSIONS
 
 #pragma region #DEFINE_DIRECTIVES
 
 #define INPUT_NAME_SIZE 8
-#define NUMBER_OF_INPUTS 6
+#define NUMBER_OF_INPUTS 4
 #define SR_LENGTH 8
 
 //// EEPROM LOCATIONS FOR STORING DATA ///
 
 #define EEPROM_SELECTED_INPUT 400
 #define EEPROM_DEF_ATTNU 401
-#define EEPROM_FIRST_RUN 402
+#define EEPROM_SABRE_FIRST_RUN 402
 
 //// END OF EEPROM LOCATIONS ///
 
-#define FIRST_RUN 0x03 		// this is just a flag for indicating that it's not the first run
-#define DEFAULT_ATTNU 49  	// 49 decibel attenuation by default
+#define DEFAULT_ATTNU 50  		// 50 decibel attenuation by default
 
-// WIRE FOR I2C		
+// WIRE FOR I2C
 #define WIRE Wire
 
 //REGISTERS///////////////////////////////////////////////////////////////
@@ -75,14 +76,18 @@
 #define REG29 0x1D	// >DPLL_NUM
 #define REG28 0x1C	// >DPLL_NUM (LSB's)
 //END REGISTERS///////////////////////////////////////////////////////////
-		
+
+// FOR CONTROLLING THE SETTINGS
+//#define NEXT 0x01
+//#define PREVIOUS 0x02
+
 #pragma endregion #DEFINE_DIRECTIVES
 
 class Sabre
 {
 	public:
-		
-#pragma region REGISTER ENUMS
+	
+	#pragma region REGISTER ENUMS
 	
 	enum SPDIF_ENABLE
 	{
@@ -206,21 +211,22 @@ class Sabre
 		UseDPLLBandwidthSetting, MultiplyDPLLBandwidthBy128
 	};
 	
-#pragma endregion REGISTER ENUMS
+	#pragma endregion REGISTER ENUMS
 	
-#pragma region PUBLIC VARIABLES
+	#pragma region PUBLIC VARIABLES
 
 	bool dualMono;
 	uint8_t Attenuation;			// hold the current attenuation (volume)
 	uint8_t SelectedInput;			// holds the current selected input
 	uint8_t DefaultAttenuation;		// Default attenuation at start (volume)
 	bool Mute;						// holds the current mute state
-	unsigned long getSampleRate();	// Retrieve DPLL_NUM, calculate sample rate and file the SampleRateString char array
-	unsigned long SampleRate;		// holds the calculated sample rate
 	
-#pragma endregion PUBLIC VARIABLES
+	unsigned long getSampleRate() { return this->SampleRate; } // returns the value that is stored in the SampleRate variable
 	
-#pragma region STRUCTS
+	
+	#pragma endregion PUBLIC VARIABLES
+	
+	#pragma region STRUCTS
 
 	struct config_t	// Holds the configuration of each of the configured inputs
 	{
@@ -239,14 +245,14 @@ class Sabre
 		uint8_t DPLL_BW_DEFAULTS;
 		uint8_t NOTCH_DELAY;
 		uint8_t SERIAL_DATA_MODE;
-		uint8_t	BIT_MODE;			
+		uint8_t	BIT_MODE;
 		uint8_t JITTER_REDUCTION;
 		uint8_t DEEMPH_FILTER;
 		uint8_t DE_EMPHASIS_SELECT;
 		uint8_t OSF_FILTER;
 		uint8_t AUTO_DEEMPH;
 		// END OF DAC SETTINGS
-	} Config[NUMBER_OF_INPUTS + 1];		
+	} Config[NUMBER_OF_INPUTS + 1];
 	
 	struct Register17
 	{
@@ -266,14 +272,14 @@ class Sabre
 		bool SPDIF_Enabled;
 		bool Lock;
 	}Status;
-			
-#pragma endregion STRUCTS
-		
+	
+	#pragma endregion STRUCTS
+	
 	protected:
 	
 	private:
 
-#pragma region PRIVATE VARIABLES
+	#pragma region PRIVATE VARIABLES
 
 	unsigned long Fcrystal;	// Clock Frequency (MHz)
 	
@@ -292,26 +298,24 @@ class Sabre
 	uint8_t sReg25;		// settings for register 25
 	uint8_t sReg27;		// value of status register 27
 
+	unsigned long SampleRate;		// holds the calculated sample rate
 	byte readRegister(uint8_t value);
-	
 	volatile unsigned long getDPLL_NUM();
 	unsigned long calculateSampleRate(volatile unsigned long dpllNumm);
-	
-	bool firstRun();	// for checking if it is the first run of the controller
 	bool manual;		// for indicating: manual settings selection or use default settings
 	
-#pragma endregion PRIVATE VARIABLES
+	#pragma endregion PRIVATE VARIABLES
 	
 	//functions
 	public:
 	
-#pragma region CONTRUCTOR
+	#pragma region CONTRUCTOR
 
 	Sabre();
 	
-#pragma endregion CONTRUCTOR
+	#pragma endregion CONTRUCTOR
 	
-#pragma region PUBLIC METHODS
+	#pragma region PUBLIC METHODS
 	
 	virtual void begin(bool DualMono, uint8_t F_crystal);
 	
@@ -321,12 +325,12 @@ class Sabre
 	void setBitMode(uint8_t value);
 	void setSerialDataMode(uint8_t value);
 	void setJitterReductionEnable(uint8_t value);
-	void setDeemphasisFilter(uint8_t value);	
+	void setDeemphasisFilter(uint8_t value);
 	void setDPLLbandwidth(uint8_t value);
 	void setDeEmphasisSelect(uint8_t value);
 	void setNotchDelay(uint8_t value);
 	void setDacPolarity(uint8_t value);
-	void setSourceOfDACs(uint8_t dac8, uint8_t dac7, uint8_t dac4, uint8_t dac3);
+	void setSourceOfDACs(uint8_t dac8source, uint8_t dac7source, uint8_t dac4source, uint8_t dac3source);
 	void setIIRbandwidth(uint8_t value);
 	void setFIRrolloffSpeed(uint8_t value);
 	void setQuantizer(uint8_t value);
@@ -341,28 +345,32 @@ class Sabre
 	void setDaCBpolarity(uint8_t value);
 	void setDPLLbandwidthDefaults(uint8_t value);
 	void setDPLLBandwidth128x(uint8_t value);
+	void setSampleRate();	// Retrieve DPLL_NUM, calculate sample rate and file the SampleRateString char array
 	
 	void applyDefaultSettings();
 	
 	void getStatus();
 	
 	void muteDACS();
-	void unMuteDACS();	
+	void unMuteDACS();
 	
 	void writeInputConfiguration();
 	void writeInputConfiguration(uint8_t input);
 	void writeSelectedInput();
 	void writeDefaultAttenuation();
 	
-	void selectInput(uint8_t input);
+	void selectInput(uint8_t value);
+
 	
-#pragma endregion PUBLIC METHODS
-		
+	#pragma endregion PUBLIC METHODS
+	
 
 	protected:
+	
+	
 	private:
 	
-#pragma region PRIVATE METHODS
+	#pragma region PRIVATE METHODS
 	
 	void writeSabreReg(uint8_t regAddr, uint8_t value);
 	void writeReg(uint8_t dacAddr, uint8_t regAddr, uint8_t value);
@@ -371,14 +379,14 @@ class Sabre
 	void setSourceOfDAC4(uint8_t value);
 	void setSourceOfDAC3(uint8_t value);
 	void setDifferentialMode(uint8_t value);
-		
+	
 	void readInputConfiguration();
 	void applyInputConfiguration(uint8_t input);
 	
-	void setRegisterDefaults(); 	
+	void setRegisterDefaults();
 	void resetInputNames();
 	
-#pragma endregion PRIVATE METHODS
+	#pragma endregion PRIVATE METHODS
 	
 	
 }; //Sabre

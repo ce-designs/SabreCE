@@ -14,23 +14,71 @@
 #include "GUI.h"
 #include "CharacterOLED.h"
 #include "Sabre.h"
-
+#include "RTClib.h"
+#include "EEPROM_Anything.h"
+#include "Helper.h"
 
 // default constructor
 GUI::GUI(uint8_t rs, uint8_t rw, uint8_t enable, uint8_t d4, uint8_t d5, uint8_t d6, uint8_t d7)
 {
 	// OLED_V1 = older, OLED_V2 = newer. If 2 doesn't work try 1 ;)
 	OLED = CharacterOLED(OLED_V2, rs, rw, enable, d4 , d5, d6, d7);
+	
 } //GUI
 
-void GUI::start()
-{		
-	GUI_State = HomeScreen;
-	OLED.begin(20, 4);	// initialize the 20x4 OLED		
+void GUI::begin()
+{
+	OLED.begin(20, 4);	// initialize the 20x4 OLED
+	rtc.begin();
+	
+	if (!rtc.isrunning())
+	{
+		rtc.adjust(DateTime(2014, 1, 1, 0, 0)); // set the date to 1 January 2014 and time to 12:00 hrs
+	}
+	
+	if (Helper::firstRun(EEPROM_GUI_FIRST_RUN))
+	{
+		applyDefaultSettings();
+		writeMainMenuSettings();
+		EEPROM.write(EEPROM_GUI_FIRST_RUN, FIRST_RUN); // write flag to EEPROM
+	}
+	else
+	{
+		readMainMenuSettings();			// read the main menu settings from the EEPROM
+	}
+	
+	this->GUI_State = HomeScreen;
 	this->SelectedInputSetting = InputName;
-	this->SelectedMenu = PresetsMenu;
+	this->SelectedMenuSetting = DisplayAutoOff;
 	this->CursorPosition = 0;
 	this->TimerEnabled = false;
+}
+
+// read all main menu settings from the EEPROM
+void GUI::readMainMenuSettings()
+{
+	EEPROM_readAnything(EEPROM_MENU_SETTINGS, this->MainMenuSettings);
+}
+
+// write all changed main menu settings to the EEPROM
+void GUI::writeMainMenuSettings()
+{
+	EEPROM_writeAnything(EEPROM_MENU_SETTINGS, this->MainMenuSettings);
+}
+
+// DEFAULT MAIN MENU SETTINGS
+void GUI::applyDefaultSettings()
+{
+	MainMenuSettings.displayAutoOff = 0;		// = false, thus no Display Auto Off
+	MainMenuSettings.displayAutoOffTime = 4;	// = 4 seconds
+	MainMenuSettings.showAutoClock = 0;			// = false, thus no Auto clock
+	MainMenuSettings.showAutoClockTime = 4;		// = 4 seconds
+	MainMenuSettings.defaultAttnu = 50;			// = 50 dB attenuation
+}
+
+void GUI::setSabreDac( Sabre *dac )
+{
+	sabreDAC = *dac;
 }
 
 void GUI::printLargeAttenuation(uint8_t Attenuation, uint8_t col)
@@ -45,7 +93,7 @@ void GUI::printLargeAttenuation(uint8_t Attenuation, uint8_t col)
 	else
 	{
 		OLED.printLargeNumber(Attenuation, col, 1);
-	}	
+	}
 }
 
 void GUI::printLargeMuteSymbol(uint8_t col)
@@ -57,32 +105,32 @@ void GUI::printLargeMuteSymbol(uint8_t col)
 	for (uint8_t i = 0; i < 21; i++)
 	{
 		if (i % 7 == 0)			// define cursor position
-		{			
-			OLED.setCursor(col, x++); 
-		}				
+		{
+			OLED.setCursor(col, x++);
+		}
 		if (i < 7 || i == 10 || i > 13)
 		{
-			OLED.write(0x20);	// print blank			
+			OLED.write(0x20);	// print blank
 		}
 		else
 		{
-			OLED.write(0x03);	// print block			
+			OLED.write(0x03);	// print block
 		}
 	}
 }
 
 void GUI::printLargeInput(uint8_t selectedInput, uint8_t col)
-{		
+{
 	OLED.printLargeNumber((selectedInput % NUMBER_OF_INPUTS) + 1, col, 1);
 }
 
 void GUI::printInputName(uint8_t col, uint8_t row)
 {
-	OLED.setCursor(col, row);	
+	OLED.setCursor(col, row);
 	for (uint8_t i = 0; i < INPUT_NAME_SIZE; i++)
 	{
 		OLED.write(sabreDAC.Config[sabreDAC.SelectedInput % NUMBER_OF_INPUTS].INPUT_NAME[i]);
-	}	
+	}
 }
 
 void GUI::printSampleRate(uint8_t col, uint8_t row)
@@ -96,25 +144,25 @@ void GUI::printSampleRate(uint8_t col, uint8_t row)
 	{
 		if (Status.DSD_Mode)
 		{
-			if(sabreDAC.SampleRate > 6143000)
-			{							
+			if(sabreDAC.getSampleRate() > 6143000)
+			{
 				OLED.print("6.1 MHz  ");
 			}
 			else
 			{
-				if(sabreDAC.SampleRate > 5644000)
+				if(sabreDAC.getSampleRate() > 5644000)
 				{
 					OLED.print( "5.6 MHz  ");
 				}
 				else
 				{
-					if(sabreDAC.SampleRate > 3071000)
+					if(sabreDAC.getSampleRate() > 3071000)
 					{
 						OLED.print("3.0 MHz  ");
 					}
 					else
 					{
-						if(sabreDAC.SampleRate > 2822000)
+						if(sabreDAC.getSampleRate() > 2822000)
 						{
 							OLED.print("2.8 MHz  ");
 						}
@@ -128,47 +176,47 @@ void GUI::printSampleRate(uint8_t col, uint8_t row)
 		}
 		else
 		{                      // If not DSD_Mode then it is either I2S or SPDIF
-			if(sabreDAC.SampleRate > 383900)
+			if(sabreDAC.getSampleRate() > 383900)
 			{
 				OLED.print("384 KHz  ");
 			}
 			else
 			{
-				if(sabreDAC.SampleRate > 352700)
+				if(sabreDAC.getSampleRate() > 352700)
 				{
 					OLED.print("352.8 KHz");
 				}
 				else
 				{
-					if(sabreDAC.SampleRate > 191900)
+					if(sabreDAC.getSampleRate() > 191900)
 					{
 						OLED.print("192 KHz  ");
 					}
 					else
 					{
-						if(sabreDAC.SampleRate > 176300)
+						if(sabreDAC.getSampleRate() > 176300)
 						{
 							OLED.print("176.4 KHz");
 						}
 						else
 						{
-							if(sabreDAC.SampleRate > 95900)
+							if(sabreDAC.getSampleRate() > 95900)
 							{
 								OLED.print("96 KHz   ");
 							}
 							else
 							{
-								if(sabreDAC.SampleRate > 88100)
+								if(sabreDAC.getSampleRate() > 88100)
 								{
 									OLED.print("88 KHz   ");
 								}
 								else
 								{
-									if(sabreDAC.SampleRate > 47900)
+									if(sabreDAC.getSampleRate() > 47900)
 									{
 										OLED.print("48 KHz   ");
 									}
-									else if (sabreDAC.SampleRate > 43900)
+									else if (sabreDAC.getSampleRate() > 43900)
 									{
 										OLED.print("44.1 KHz ");
 									}
@@ -182,7 +230,7 @@ void GUI::printSampleRate(uint8_t col, uint8_t row)
 					}
 				}
 			}
-		}		
+		}
 	}
 }
 
@@ -226,51 +274,67 @@ void GUI::printHomeScreen(uint8_t selectedInput, uint8_t attenuation)
 		printInputName(0, 0);
 		printSampleRate(0, 2);
 		printInputFormat(0, 3);
-		printLargeAttenuation(attenuation, 13);
+		if (sabreDAC.Mute)
+		{
+			printLargeMuteSymbol(13);
+		}
+		else
+		{
+			printLargeAttenuation(attenuation, 13);
+		}
 		break;
 		default:								// Home Screen: (default) use large input and volume numbers
-		printInputName(4, 2);											
+		printInputName(4, 2);
 		printLargeInput(selectedInput, 0);
-		printLargeAttenuation(attenuation, 13);
+		if (sabreDAC.Mute)
+		{
+			printLargeMuteSymbol(13);
+		}
+		else
+		{
+			printLargeAttenuation(attenuation, 13);
+		}
 		printSampleRate(0, 0);
 		printInputFormat(4, 3);
 		break;
 	}
-	
+	NoDisplay = false;
 	this->GUI_State = HomeScreen;
 }
 
 
 
 void GUI::printInputSettingsMenu(uint8_t selectedInput)
-{	
+{
 	PrepareForMenuPrinting();					// defines new custom chars and clears the display
 	String input = "INPUT";
-	printTitleBar(input + (selectedInput + 1));	// print Input Settings Menu: Print title bar with the selected input	
+	printTitleBar(input + (selectedInput + 1));	// print Input Settings Menu: Print title bar with the selected input
 	
 	
-	printSelectedInputSettings(255, 8191);		// print all activated input settings
+	printSelectedInputSettings(255, this->SettingsCode());		// print all activated input settings
 	
-	//PrintSelectedInputSettings(255);			// print all the select input related settings
 	printPointer();
 	
 	OLED.setCursor(19,3);
 	OLED.write(1);
 	
+	NoDisplay = false;
 	this->GUI_State = InputSettingsMenu;
 }
 
 void GUI::printSelectedInputSettings(uint8_t value, int code)
 {
-	SetPointerValue(value, &this->SelectedInputSetting, SETTINGS_COUNT - 1);	// set the correct value for the setting variable
 	
+	Helper::SetPointerValue(value, &this->SelectedInputSetting, INPUT_SETTINGS_COUNT - 1, 0);
+	
+
 	uint8_t row = 1;
 	uint8_t col = 1;
-		
-	for (uint8_t i = this->SelectedInputSetting; i < SETTINGS_COUNT; i++)
+	
+	for (uint8_t i = this->SelectedInputSetting; i < INPUT_SETTINGS_COUNT; i++)
 	{
 		if (bitRead(code, i))
-		{			
+		{
 			switch (i)
 			{
 				case InputName:
@@ -310,106 +374,21 @@ void GUI::printSelectedInputSettings(uint8_t value, int code)
 				printBitmodeSetting(col, row);
 				break;
 				case AutoDeemphasis:
-				printDeemphFilterSetting(col, row);		
+				printDeemphFilterSetting(col, row);
 				break;
 				default:
 				printEmptyRow(row);
 				break;
-			}					
+			}
 			row++;
 			if (row > 3) break;	// stop printing
-		}		
+		}
 	}
 	for (uint8_t i = row; i < 4; i++)
 	{
 		printEmptyRow(i);
-	}	
-	
-}
-
-void GUI::printSelectedInputSettings(uint8_t value)
-{
-	SetPointerValue(value, &this->SelectedInputSetting, SETTINGS_COUNT);	// set the correct value for the setting variable
-	switch (this->SelectedInputSetting)	
-	{
-		case 0:
-		printInputNameSetting(1, 1);
-		printFIRsetting(1, 2);
-		printIIRsetting(1 ,3);
-		OLED.setCursor(19,1);
-		OLED.write(0x20);
-		OLED.setCursor(19,3);
-		OLED.write(DOWNWARDS_ARROW);
-		break;
-		case 1:
-		printFIRsetting(1, 1);
-		printIIRsetting(1 ,2);
-		printNotchSetting(1, 3);		
-		OLED.setCursor(19,1);
-		OLED.write(UPWARDS_ARROW);
-		break;
-		case 2:
-		printIIRsetting(1 , 1);
-		printNotchSetting(1, 2);		
-		printQuantizerSetting(1, 3);	
-		break;
-		case 3:
-		printNotchSetting(1, 1);
-		printQuantizerSetting(1, 2);
-		printDPLLbandwidthSetting(1, 3);		
-		break;
-		case 4:
-		printQuantizerSetting(1, 1);
-		printDPLLbandwidthSetting(1, 2);
-		printDPLLmultiplierSetting(1, 3);		
-		break;
-		case 5:
-		printDPLLbandwidthSetting(1, 1);
-		printDPLLmultiplierSetting(1, 2);
-		printOSFfilterSetting(1, 3);		
-		break;		
-		case 6:
-		printDPLLmultiplierSetting(1, 1);
-		printOSFfilterSetting(1, 2);
-		printSPDIFenableSetting(1, 3);
-		break;
-		case 7:
-		printOSFfilterSetting(1, 1);
-		printSPDIFenableSetting(1, 2);
-		printSerialDataModeSetting(1, 3);
-		break;
-		case 8:		
-		printSPDIFenableSetting(1, 1);
-		printSerialDataModeSetting(1, 2);
-		printSPDIFsourceSetting(1, 3);		
-		break;	
-		case 9:
-		printSerialDataModeSetting(1, 1);		
-		printSPDIFsourceSetting(1, 2);		
-		printBitmodeSetting(1, 3);	
-		break;
-		case 10:
-		printSPDIFsourceSetting(1, 1);
-		printBitmodeSetting(1, 2);
-		printDeemphFilterSetting(1, 3);
-		break;
-		case 11:
-		printBitmodeSetting(1, 1);
-		printDeemphFilterSetting(1, 2);
-		printEmptyRow(3);
-		OLED.setCursor(19,3);
-		OLED.write(DOWNWARDS_ARROW);
-		break;
-		case 12: 
-		printDeemphFilterSetting(1, 1);		
-		printEmptyRow(2);
-		printEmptyRow(3);
-		OLED.setCursor(19,1);
-		OLED.write(UPWARDS_ARROW);
-		OLED.setCursor(19,3);
-		OLED.write(0x20);		
-		break;		
 	}
+	
 }
 
 void GUI::PrepareForMenuPrinting()
@@ -470,8 +449,8 @@ void GUI::printInputNameSetting(uint8_t col, uint8_t row)
 void GUI::printFIRsetting(uint8_t col, uint8_t row)
 {
 	OLED.setCursor(col, row);
-	OLED.print("FIR: ");	
-	switch (sabreDAC.Config[sabreDAC.SelectedInput].FIR_FILTER)	
+	OLED.print("FIR: ");
+	switch (sabreDAC.Config[sabreDAC.SelectedInput].FIR_FILTER)
 	{
 		case SlowRolloff:
 		OLED.print("Slow Rolloff");
@@ -488,16 +467,16 @@ void GUI::printIIRsetting(uint8_t col, uint8_t row)
 	OLED.print("IIR: ");
 	switch (sabreDAC.Config[sabreDAC.SelectedInput].IIR_BANDWIDTH)
 	{
-		case normalIIR:					
+		case normalIIR:
 		OLED.print("47K (PCM)   ");
 		break;
-		case use60K:					
+		case use60K:
 		OLED.print("60K (DSD)   ");
 		break;
-		case use70K:					
+		case use70K:
 		OLED.print("70K (DSD)   ");
 		break;
-		default:					
+		default:
 		OLED.print("50K (DSD)   ");
 		break;
 	}
@@ -509,22 +488,22 @@ void GUI::printNotchSetting(uint8_t col, uint8_t row)
 	OLED.print("NCH: ");
 	switch (sabreDAC.Config[sabreDAC.SelectedInput].NOTCH_DELAY)
 	{
-		case MCLK4:						
+		case MCLK4:
 		OLED.print("MCLK/4      ");
 		break;
-		case MCLK8:					
+		case MCLK8:
 		OLED.print("MCLK/8      ");
 		break;
-		case MCLK16:					
+		case MCLK16:
 		OLED.print("MCLK/16     ");
 		break;
-		case MCLK32:					
+		case MCLK32:
 		OLED.print("MCLK/32     ");
 		break;
-		case MCLK64:					
+		case MCLK64:
 		OLED.print("MCLK/64     ");
 		break;
-		default:						
+		default:
 		OLED.print("No Notch    ");
 		break;
 	}
@@ -563,28 +542,28 @@ void GUI::printDPLLbandwidthSetting(uint8_t col, uint8_t row)
 	OLED.print("PLL: ");
 	switch (sabreDAC.Config[sabreDAC.SelectedInput].DPLL_BANDWIDTH)
 	{
-		case DPLL_NoBandwidth:		
+		case DPLL_NoBandwidth:
 		OLED.print("No DPLL bw  ");
 		break;
-		case DPLL_Lowest:			
+		case DPLL_Lowest:
 		OLED.print("Lowest      ");
 		break;
-		case DPLL_Low:			
+		case DPLL_Low:
 		OLED.print("Low         ");
 		break;
-		case DPLL_MedLow:		
+		case DPLL_MedLow:
 		OLED.print("Medium-Low  ");
 		break;
-		case DPLL_Medium:		
+		case DPLL_Medium:
 		OLED.print("Medium      ");
 		break;
-		case DPLL_MedHigh:			
+		case DPLL_MedHigh:
 		OLED.print("Medium-High ");
 		break;
-		case DPLL_High:		
+		case DPLL_High:
 		OLED.print("High        ");
 		break;
-		case DPLL_Highest:	
+		case DPLL_Highest:
 		OLED.print("Highest     ");
 		break;
 		default:
@@ -651,10 +630,6 @@ void GUI::printSerialDataModeSetting(uint8_t col, uint8_t row)
 		OLED.print("RJ           ");
 		break;
 		default:
-		//if (sabreDAC.Config[sabreDAC.SelectedInput].SPDIF_ENABLE == useSPDIF)
-		//{
-			//printLockSymbol(col + 4, row);
-		//}
 		OLED.print("I2S          ");
 		break;
 	}
@@ -690,7 +665,7 @@ void GUI::printSPDIFsourceSetting(uint8_t col, uint8_t row)
 		default:
 		//if (sabreDAC.Config[sabreDAC.SelectedInput].SPDIF_ENABLE == useI2SorDSD)
 		//{
-			//printLockSymbol(col + 4, row);
+		//printLockSymbol(col + 4, row);
 		//}
 		OLED.print("Data 1      ");
 		break;
@@ -703,16 +678,16 @@ void GUI::printBitmodeSetting(uint8_t col, uint8_t row)
 	OLED.print("BTM: ");
 	switch (sabreDAC.Config[sabreDAC.SelectedInput].BIT_MODE)
 	{
-		case BitMode16:					
+		case BitMode16:
 		OLED.print("16 Bit      ");
 		break;
-		case BitMode20:					
+		case BitMode20:
 		OLED.print("20 Bit      ");
 		break;
-		case BitMode24:				
+		case BitMode24:
 		OLED.print("24 Bit      ");
 		break;
-		default:				
+		default:
 		OLED.print("32 Bit      ");
 		break;
 	}
@@ -724,13 +699,13 @@ void GUI::printDeemphFilterSetting(uint8_t col, uint8_t row)
 	OLED.print("DMP: ");
 	switch (sabreDAC.Config[sabreDAC.SelectedInput].DE_EMPHASIS_SELECT)
 	{
-		case f32kHz:					
+		case f32kHz:
 		OLED.print("32 kHz      ");
 		break;
-		case f48kHz:					
+		case f48kHz:
 		OLED.print("48 kHz      ");
 		break;
-		case f44_1kHz:					
+		case f44_1kHz:
 		OLED.print("44.1 kHz    ");
 		break;
 		default:
@@ -739,76 +714,43 @@ void GUI::printDeemphFilterSetting(uint8_t col, uint8_t row)
 	}
 }
 
-void GUI::SetCursorPosition( uint8_t value )
-{	
+void GUI::setInputNameCursor( uint8_t value )
+{
 	cli();
+	
 	if (this->CursorPosition != 0 && value != 0)
 	{
-		printSelectedChar();	
+		printSelectedChar();
 	}
-	SetPointerValue(value, &this->CursorPosition, INPUT_NAME_SIZE);		
-	OLED.setCursor(5 + this->CursorPosition, 1);	
+	Helper::SetPointerValue(value, &CursorPosition, INPUT_NAME_SIZE, 0);
+	OLED.setCursor(5 + this->CursorPosition, 1);
 	if (this->CursorPosition > 0 && this->TimerEnabled == false)
 	{
 		this->TimerEnabled = true;
+		printLockSymbol(0, 1);
 		
 		//set timer1 interrupt at 1Hz
-		TCCR1A = 0;// set entire TCCR1A register to 0
-		TCCR1B = 0;// same for TCCR1B
-		TCNT1  = 0;//initialize counter value to 0
-		// set compare match register for 1hz increments
-		OCR1A =  7812; // = (16*10^6) / (0.5*1024) - 1 (must be <65536)
-		// turn on CTC mode
-		TCCR1B |= (1 << WGM12);
-		// Set CS12 and CS10 bits for 1024 prescaler
-		TCCR1B |= (1 << CS12) | (1 << CS10);
-		// enable timer compare interrupt
-		TIMSK1 |= (1 << OCIE1A);	
-			
-	}	
-	else if (this->CursorPosition == 0 && this->TimerEnabled)
-	{		
-		OLED.write(0x20);		
-		stopInputNameEditMode(); // stop timer and 
+		startTimer();
 	}
-	sei();	
+	else if (this->CursorPosition == 0 && this->TimerEnabled)
+	{
+		OLED.write(0x20);
+		printPointer();
+		stopTimer(); // stop timer and
+	}
+	sei();
 }
 
-void GUI::SetPointerValue(uint8_t value, uint8_t *pointerValue, uint8_t maxValue)
-{
-	if (value == NEXT)
-	{
-		if (*pointerValue == maxValue)
-		{
-			*pointerValue = 0;
-		}
-		else
-		{
-			*pointerValue += 1; // set to next setting, cursor position or whatever
-		}
-	}
-	else if (value == PREVIOUS)
-	{
-		if (*pointerValue == 0)
-		{
-			*pointerValue = maxValue;
-		}
-		else
-		{
-			*pointerValue -= 1; // set to previous setting, cursor position or whatever
-		}
-	}
-}
 
 void GUI::printSelectedChar()
 {
 	cli();
 	OLED.setCursor(5 + this->CursorPosition, 1);
-	OLED.write(sabreDAC.Config[sabreDAC.SelectedInput % NUMBER_OF_INPUTS].INPUT_NAME[this->CursorPosition -1]);	
+	OLED.write(sabreDAC.Config[sabreDAC.SelectedInput % NUMBER_OF_INPUTS].INPUT_NAME[this->CursorPosition -1]);
 	sei();
 }
 
-bool GUI::InputNameEditMode()
+bool GUI::EditMode()
 {
 	return this->CursorPosition > 0;
 }
@@ -835,7 +777,7 @@ void GUI::PrintPreviousChar()
 	sei();
 }
 
-void GUI::stopInputNameEditMode()
+void GUI::stopTimer()
 {
 	cli();
 	TCCR1A = 0;	// set TCCR1A register to 0
@@ -849,17 +791,123 @@ void GUI::printMainMenu()
 	PrepareForMenuPrinting();					// defines new custom chars and clears the display
 	OLED.setCursor(0, 0);
 	printTitleBar("MENU");
-	OLED.setCursor(0, 1);
-	OLED.write(0x7E);							// Print arrow to indicate the selected setting
-	OLED.print("Audio Presets");	
-	OLED.setCursor(1, 2);
-	OLED.print("Display Settings");
-	OLED.setCursor(1, 3);
-	OLED.print("Date & Time");
-	
+	printSelectedMainMenuSetting(this->SelectedMenuSetting);
 	printPointer();
-	
+	NoDisplay = false;
 	this->GUI_State = MainMenu;
+}
+
+void GUI::printSelectedMainMenuSetting(uint8_t value)
+{
+	Helper::SetPointerValue(value, &this->SelectedMenuSetting, DefaultAttnu, 0);	// set the correct value for the setting variable
+	
+	uint8_t row = 1;
+	uint8_t col = 2;
+	
+	switch (this->SelectedMenuSetting)
+	{
+		case DisplayAutoOff:
+		printDisplayAutoOffSetting(col, row);
+		break;
+		case DisplayAutoOffTime:
+		printDisplayAutoOffTimeSetting(col, row);
+		break;
+		case DefaultAttnu:
+		printDefaultAttnuSetting(col, row);
+		break;
+		case ShowAutoClock:
+		printShowAutoClockSetting(col, row);
+		break;
+		case ShowAutoClockTime:
+		printAutoClockTimeSetting(col, row);
+		break;
+		case AdjustTime:
+		printAdjustTimeSetting(col, row);
+		break;
+		case AdjustDate:
+		printAdjustDateSetting(col, row);
+		break;
+		default:
+		// do nothing
+		break;
+	}
+}
+
+void GUI::printDisplayAutoOffSetting(uint8_t col, uint8_t row)
+{
+	OLED.setCursor(col, row);
+	OLED.print("Auto Display Off: ");
+	printEnabledSetting(MainMenuSettings.displayAutoOff, col + 2, row + 1);
+}
+
+void GUI::printDisplayAutoOffTimeSetting(uint8_t col, uint8_t row)
+{
+	OLED.setCursor(col, row);
+	OLED.print("Display Off Time:");
+	OLED.setCursor(col + 2, row + 1);
+	OLED.print(MainMenuSettings.displayAutoOffTime);
+	OLED.print(" sec     ");
+}
+
+void GUI::printShowAutoClockSetting(uint8_t col, uint8_t row)
+{
+	OLED.setCursor(col, row);
+	OLED.print("Auto Clock:      ");
+	printEnabledSetting(MainMenuSettings.showAutoClock, col + 2, row + 1);
+}
+
+void GUI::printDefaultAttnuSetting(uint8_t col, uint8_t row)
+{
+	OLED.setCursor(col, row);
+	OLED.print("Default volume:  ");
+	OLED.setCursor(col + 2, row + 1);
+	OLED.write(0x2D); // minus
+	OLED.print(MainMenuSettings.defaultAttnu);
+	OLED.print(" dB      ");
+}
+
+void GUI::printAutoClockTimeSetting(uint8_t col, uint8_t row)
+{
+	OLED.setCursor(col, row);
+	OLED.print("Clock Time:      ");
+	OLED.setCursor(col + 2, row + 1);
+	OLED.print(MainMenuSettings.showAutoClockTime);
+	OLED.print(" sec     ");
+}
+
+void GUI::printAdjustTimeSetting(uint8_t col, uint8_t row)
+{
+	OLED.setCursor(col, row);
+	OLED.print("Adjust Time:     ");
+	OLED.setCursor(col + 2, row + 1);
+	DateTime now = rtc.now();
+	Hour = now.hour();
+	Minute = now.minute();
+	printHour();
+	OLED.write(0x3A);
+	printMinute();
+	// fill row with blanks
+	for (uint8_t i = 0; i < 5; i++)
+	{
+		OLED.write(0x20);
+	}
+	
+}
+
+void GUI::printAdjustDateSetting(uint8_t col, uint8_t row)
+{
+	OLED.setCursor(col, row);
+	OLED.print("Adjust Date:     ");
+	OLED.setCursor(col + 2, row + 1);
+	DateTime now = rtc.now();
+	Day = now.day();
+	Month = now.month();
+	Year = now.year();
+	OLED.print(Day);
+	OLED.write(0x2D);
+	OLED.print(Month);
+	OLED.write(0x2D);
+	OLED.print(Year);
 }
 
 void GUI::printPointer()
@@ -868,9 +916,307 @@ void GUI::printPointer()
 	OLED.write(0x7E);							// Print arrow to point out the selected menu or setting
 }
 
+void GUI::printEnabledSetting(bool enabled, uint8_t col, uint8_t row)
+{
+	OLED.setCursor(col, row);
+	if (enabled)
+	{
+		OLED.print("Enabled   ");
+	}
+	else
+	{
+		OLED.print("Disabled  ");
+	}
+}
+
+// toggles between the display states On/Off
+void GUI::toggleDisplay()
+{
+	
+	if (this->NoDisplay)
+	{
+		switch (GUI_State)
+		{
+			case HomeScreen:
+			printHomeScreen(this->sabreDAC.SelectedInput, this->sabreDAC.Attenuation);
+			break;
+			case InputSettingsMenu:
+			printInputSettingsMenu(sabreDAC.SelectedInput);
+			break;
+			case MainMenu:
+			printMainMenu();
+			break;
+			default:
+			/* Your code here */
+			break;
+		}
+		this->NoDisplay = false;
+	}
+	else
+	{
+		OLED.clear();
+		this->NoDisplay = true;
+	}
+}
 
 
+// prints the time in large numbers
+void GUI::printLargeTime()
+{
+	DateTime now = rtc.now();
+	OLED.printLargeNumber(now.hour(), 1, 1);
+	OLED.setCursor(9,1);
+	OLED.write(0x2E);
+	OLED.setCursor(9,3);
+	OLED.write(0X2E);
+	OLED.printLargeNumber(now.minute(), 11, 1);
+}
+
+void GUI::setTimeCursor( uint8_t value )
+{
+	cli();
+	
+	if (this->CursorPosition != 0 && value != 0)
+	{
+		if (CursorPosition == 1)
+		{
+			printHour();
+		}
+		else
+		{
+			printMinute();
+		}
+	}
+	
+	Helper::SetPointerValue(value, &CursorPosition, 2, 0);
+	
+	if (this->CursorPosition > 0 && this->TimerEnabled == false)
+	{
+		this->TimerEnabled = true;
+		printLockSymbol(0, 1);
+		
+		//set timer1 interrupt at 1Hz
+		startTimer();
+	}
+	else if (this->CursorPosition == 0 && this->TimerEnabled)
+	{
+		printPointer();
+		stopTimer(); // stop timer
+		saveDateTime();
+	}
+
+	if (CursorPosition == 1)
+	{
+		OLED.setCursor(4, 2);
+		if (value == 0)
+		{
+			OLED.write(0x5F);
+			OLED.write(0x5F);
+		}
+	}
+	else if (CursorPosition == 2)
+	{
+		OLED.setCursor(7, 2);
+		if (value == 0)
+		{
+			OLED.write(0x5F);
+			OLED.write(0x5F);
+		}
+	}
+	
+	sei();
+}
+
+//set timer1 interrupt at 1Hz
+void GUI::startTimer()
+{
+	//set timer1 interrupt at 1Hz
+	TCCR1A = 0;// set entire TCCR1A register to 0
+	TCCR1B = 0;// same for TCCR1B
+	TCNT1  = 0;//initialize counter value to 0
+	// set compare match register for 1hz increments
+	OCR1A =  7812; // = (16*10^6) / (0.5*1024) - 1 (must be <65536)
+	// turn on CTC mode
+	TCCR1B |= (1 << WGM12);
+	// Set CS12 and CS10 bits for 1024 prescaler
+	TCCR1B |= (1 << CS12) | (1 << CS10);
+	// enable timer compare interrupt
+	TIMSK1 |= (1 << OCIE1A);
+}
+
+void GUI::setAndPrintHour( uint8_t value )
+{
+	cli();
+	Helper::SetPointerValue(value, &Hour, 23, 0);
+	printHour();
+	sei();
+}
+
+void GUI::setAndPrintMinute( uint8_t value )
+{
+	cli();
+	Helper::SetPointerValue(value, &Minute, 59, 0);
+	printMinute();
+	sei();
+}
+
+void GUI::printHour()
+{
+	OLED.setCursor(4, 2);
+	if (Hour < 10)
+	{
+		OLED.write(0x30);
+	}
+	OLED.print(Hour);
+}
+
+void GUI::printMinute()
+{
+	OLED.setCursor(7, 2);
+	if (Minute < 10)
+	{
+		OLED.write(0x30);
+	}
+	OLED.print(Minute);
+}
+
+void GUI::setDateCursor( uint8_t value )
+{
+	cli();
+	
+	if (this->CursorPosition != 0 && value != 0)
+	{
+		if (CursorPosition == 1)
+		{
+			printDay();
+		}
+		else if (CursorPosition == 2)
+		{
+			printMonth();
+		}
+		else
+		{
+			printYear();
+		}
+	}
+	
+	Helper::SetPointerValue(value, &CursorPosition, 3, 0);
+	
+	if (this->CursorPosition > 0 && this->TimerEnabled == false)
+	{
+		this->TimerEnabled = true;
+		printLockSymbol(0, 1);
+		
+		//set timer1 interrupt at 1Hz
+		startTimer();
+	}
+	else if (this->CursorPosition == 0 && this->TimerEnabled)
+	{
+		OLED.write(0x20);
+		printPointer();
+		stopTimer(); // stop timer
+		saveDateTime();
+	}
+
+	if (CursorPosition == 1)
+	{
+		OLED.setCursor(4, 2);
+		if (value == 0)
+		{
+			OLED.write(0x5F);
+			OLED.write(0x5F);
+		}
+	}
+	else if (CursorPosition == 2)
+	{
+		OLED.setCursor(7, 2);
+		if (value == 0)
+		{
+			OLED.write(0x5F);
+			OLED.write(0x5F);
+		}
+	}
+	else if (CursorPosition == 3)
+	{
+		OLED.setCursor(10, 2);
+		if (value == 0)
+		{
+			for (uint8_t i = 0; i < 4; i++)
+			{
+				OLED.write(0x5F);
+			}
+		}
+	}
+	
+	sei();
+}
 
 
+void GUI::setAndPrintDay( uint8_t value )
+{
+	cli();
+	// get the maximal number of days in the month
+	uint8_t maxValue = DateTime::daysInMonth(Month - 1);
+	//// correct it when the year is a leap year
+	if (Month == 2)
+	{
+		if (DateTime::isLeapYear(Year))
+		{
+			maxValue += 1;
+		}
+	}
+	Helper::SetPointerValue(value, &Day, maxValue, 1);
+	
+	printDay();
+	sei();
+}
 
-///END DEFAULT SCREEN/MENU PRINTING////////////////
+void GUI::printDay()
+{
+	OLED.setCursor(4, 2);
+	if (Day < 10)
+	{
+		OLED.write(0x30);
+	}
+	OLED.print(Day);
+}
+
+void GUI::setAndPrintMonth( uint8_t value )
+{
+	cli();
+	Helper::SetPointerValue(value, &Month, 12, 1);
+	printMonth();
+	sei();
+}
+
+void GUI::printMonth()
+{
+	OLED.setCursor(7, 2);
+	if (Month < 10)
+	{
+		OLED.write(0x30);
+	}
+	OLED.print(Month);
+}
+
+void GUI::setAndPrintYear( uint8_t value )
+{
+	cli();
+	uint8_t tempYear = Year - 2000;
+	Helper::SetPointerValue(value, &tempYear, 99, 1);
+	Year = tempYear + 2000;
+	printYear();
+	sei();
+}
+
+void GUI::printYear()
+{
+	OLED.setCursor(10, 2);
+	OLED.print(Year);
+}
+
+void GUI::saveDateTime()
+{
+	rtc.adjust(DateTime(Year, Month, Day, Hour, Minute, 0)); // set the date and time
+	
+}
