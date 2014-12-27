@@ -12,13 +12,8 @@ This repository contains:
   - A modified version of Adafruit's characterOLED library for interfacing a Newhaven OLED display (Rev.C).(Remove this          library when using a Rev.A display)
   - A DS1307 library for interfacing the DS1307 RTC.
   - A modified version of EEPROMWriteAnything.
- 
-To be added:
-  - A DS1307 library for interfacing the DS1307 RTC.
-  - A encoder library for infacing a rotary encoder.
-  - probably more to come...
 
-
+Still under development!
   
 In theory the code can also be used with Arduino Mega or similar development boards, but not without changing some parts of the code.
 
