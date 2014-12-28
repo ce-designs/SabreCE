@@ -210,32 +210,6 @@ class Sabre
 	
 	#pragma region STRUCTS
 
-	//struct config_t	// Holds the configuration of each of the configured inputs
-	//{
-		//// NON DAC-REGISTER RELATED INPUT SETTINGS
-		//char INPUT_NAME[INPUT_NAME_SIZE];
-		//uint8_t INPUT_ENABLED;
-		//// DAC REGISTER SETTINGS OF THE INPUT
-		//uint8_t SPDIF_SOURCE;
-		//uint8_t FIR_FILTER;
-		//uint8_t IIR_BANDWIDTH;
-		//uint8_t QUANTIZER;
-		//uint8_t DIFFERENTIAL_MODE;
-		//uint8_t SPDIF_ENABLE;
-		//uint8_t DPLL_BANDWIDTH;
-		//uint8_t DPLL_BW_128X;
-		//uint8_t DPLL_BW_DEFAULTS;
-		//uint8_t NOTCH_DELAY;
-		//uint8_t SERIAL_DATA_MODE;
-		//uint8_t BIT_MODE;
-		//uint8_t JITTER_REDUCTION;
-		//uint8_t DEEMPH_FILTER;
-		//uint8_t DE_EMPHASIS_SELECT;
-		//uint8_t OSF_FILTER;
-		//uint8_t AUTO_DEEMPH;
-		//// END OF DAC SETTINGS
-	//} Config[NUMBER_OF_INPUTS + 1];
-	
 	struct Register17
 	{
 		bool Use_Left_Channel;
