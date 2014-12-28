@@ -18,7 +18,6 @@
 // FLAGS
 #define NEXT 0x01
 #define PREVIOUS 0x02
-#define FIRST_RUN 0x01
 
 class Helper
 {
@@ -31,7 +30,7 @@ private:
 public:
 	
 	static void SetPointerValue(const uint8_t value, uint8_t *pointerValue, const uint8_t maxValue, const uint8_t minValue);
-	static bool firstRun(int ee); 	// for checking if it is the first run of the controller
+	//static bool firstRun(int ee); 	// for checking if it is the first run of the controller
 	
 protected:
 private:

@@ -26,20 +26,6 @@
 
 #pragma region #DEFINE_DIRECTIVES
 
-#define INPUT_NAME_SIZE 8
-#define NUMBER_OF_INPUTS 4
-#define SR_LENGTH 8
-
-//// EEPROM LOCATIONS FOR STORING DATA ///
-
-#define EEPROM_SELECTED_INPUT 400
-#define EEPROM_DEF_ATTNU 401
-#define EEPROM_SABRE_FIRST_RUN 402
-
-//// END OF EEPROM LOCATIONS ///
-
-#define DEFAULT_ATTNU 50  		// 50 decibel attenuation by default
-
 // WIRE FOR I2C
 #define WIRE Wire
 
@@ -77,10 +63,6 @@
 #define REG28 0x1C	// >DPLL_NUM (LSB's)
 //END REGISTERS///////////////////////////////////////////////////////////
 
-// FOR CONTROLLING THE SETTINGS
-//#define NEXT 0x01
-//#define PREVIOUS 0x02
-
 #pragma endregion #DEFINE_DIRECTIVES
 
 class Sabre
@@ -88,7 +70,7 @@ class Sabre
 	public:
 	
 	#pragma region REGISTER ENUMS
-	
+		
 	enum SPDIF_ENABLE
 	{
 		useI2SorDSD, useSPDIF
@@ -191,9 +173,9 @@ class Sabre
 		invertPhase, DoNotInvertPhase
 	};
 
-	enum OUTPUT_MODE
+	enum ALL_MONO
 	{
-		NormalMode, AllMonoMode
+		NormalMode, TreuMonoMode
 	};
 
 	enum SPDIF_SOURCE
@@ -217,8 +199,8 @@ class Sabre
 
 	bool dualMono;
 	uint8_t Attenuation;			// hold the current attenuation (volume)
-	uint8_t SelectedInput;			// holds the current selected input
-	uint8_t DefaultAttenuation;		// Default attenuation at start (volume)
+	//uint8_t SelectedInput;			// holds the current selected input
+	//uint8_t DefaultAttenuation;		// Default attenuation at start (volume)
 	bool Mute;						// holds the current mute state
 	
 	unsigned long getSampleRate() { return this->SampleRate; } // returns the value that is stored in the SampleRate variable
@@ -228,31 +210,31 @@ class Sabre
 	
 	#pragma region STRUCTS
 
-	struct config_t	// Holds the configuration of each of the configured inputs
-	{
-		// NON DAC-REGISTER RELATED INPUT SETTINGS
-		char INPUT_NAME[INPUT_NAME_SIZE];
-		uint8_t INPUT_ENABLED;
-		// DAC REGISTER SETTINGS OF THE INPUT
-		uint8_t SPDIF_SOURCE;
-		uint8_t FIR_FILTER;
-		uint8_t IIR_BANDWIDTH;
-		uint8_t QUANTIZER;
-		uint8_t DIFFERENTIAL_MODE;
-		uint8_t SPDIF_ENABLE;
-		uint8_t DPLL_BANDWIDTH;
-		uint8_t DPLL_BW_128X;
-		uint8_t DPLL_BW_DEFAULTS;
-		uint8_t NOTCH_DELAY;
-		uint8_t SERIAL_DATA_MODE;
-		uint8_t	BIT_MODE;
-		uint8_t JITTER_REDUCTION;
-		uint8_t DEEMPH_FILTER;
-		uint8_t DE_EMPHASIS_SELECT;
-		uint8_t OSF_FILTER;
-		uint8_t AUTO_DEEMPH;
-		// END OF DAC SETTINGS
-	} Config[NUMBER_OF_INPUTS + 1];
+	//struct config_t	// Holds the configuration of each of the configured inputs
+	//{
+		//// NON DAC-REGISTER RELATED INPUT SETTINGS
+		//char INPUT_NAME[INPUT_NAME_SIZE];
+		//uint8_t INPUT_ENABLED;
+		//// DAC REGISTER SETTINGS OF THE INPUT
+		//uint8_t SPDIF_SOURCE;
+		//uint8_t FIR_FILTER;
+		//uint8_t IIR_BANDWIDTH;
+		//uint8_t QUANTIZER;
+		//uint8_t DIFFERENTIAL_MODE;
+		//uint8_t SPDIF_ENABLE;
+		//uint8_t DPLL_BANDWIDTH;
+		//uint8_t DPLL_BW_128X;
+		//uint8_t DPLL_BW_DEFAULTS;
+		//uint8_t NOTCH_DELAY;
+		//uint8_t SERIAL_DATA_MODE;
+		//uint8_t BIT_MODE;
+		//uint8_t JITTER_REDUCTION;
+		//uint8_t DEEMPH_FILTER;
+		//uint8_t DE_EMPHASIS_SELECT;
+		//uint8_t OSF_FILTER;
+		//uint8_t AUTO_DEEMPH;
+		//// END OF DAC SETTINGS
+	//} Config[NUMBER_OF_INPUTS + 1];
 	
 	struct Register17
 	{
@@ -281,7 +263,7 @@ class Sabre
 
 	#pragma region PRIVATE VARIABLES
 
-	unsigned long Fcrystal;	// Clock Frequency (MHz)
+	unsigned long Fclock;	// Clock Frequency (MHz)
 	
 	uint8_t	sReg8;		// settings for register 8
 	uint8_t sReg9;		// settings for register 9
@@ -317,9 +299,9 @@ class Sabre
 	
 	#pragma region PUBLIC METHODS
 	
-	virtual void begin(bool DualMono, uint8_t F_crystal);
+	virtual void begin(uint8_t mode, uint8_t f_clock, uint8_t defaultAttenuation, bool mute);
 	
-	void setVolume(uint8_t value);
+	void setAttenuation(uint8_t value);
 	void setSPDIFenable(uint8_t value);
 	void setAutomuteTime(uint8_t value);
 	void setBitMode(uint8_t value);
@@ -346,24 +328,16 @@ class Sabre
 	void setDPLLbandwidthDefaults(uint8_t value);
 	void setDPLLBandwidth128x(uint8_t value);
 	void setSampleRate();	// Retrieve DPLL_NUM, calculate sample rate and file the SampleRateString char array
-	
-	void applyDefaultSettings();
-	
+		
 	void getStatus();
 	
 	void muteDACS();
 	void unMuteDACS();
-	
-	void writeInputConfiguration();
-	void writeInputConfiguration(uint8_t input);
-	void writeSelectedInput();
-	void writeDefaultAttenuation();
-	
+		
 	void selectInput(uint8_t value);
-
 	
 	#pragma endregion PUBLIC METHODS
-	
+
 
 	protected:
 	
@@ -379,10 +353,7 @@ class Sabre
 	void setSourceOfDAC4(uint8_t value);
 	void setSourceOfDAC3(uint8_t value);
 	void setDifferentialMode(uint8_t value);
-	
-	void readInputConfiguration();
-	void applyInputConfiguration(uint8_t input);
-	
+		
 	void setRegisterDefaults();
 	void resetInputNames();
 	

@@ -41,8 +41,3 @@ void Helper::SetPointerValue( const uint8_t value, uint8_t *pointerValue, const 
 		}
 	}
 }
-
-bool Helper::firstRun(int ee)
-{
-	return (EEPROM.read(ee) != FIRST_RUN);
-}

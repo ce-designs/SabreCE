@@ -26,51 +26,36 @@ Sabre::Sabre()
 
 //PUBLIC FUNCTIONS////////////////////////////////////////////////////////
 
-void Sabre::begin(bool DualMono, uint8_t F_crystal)
-{
-	
-	this->Reg17.All_Mono = DualMono;		// Set flag, so all DACs are muted as early as possible
-	this->sReg10 = 0xCE;					// use default = 8'b11001110
-	muteDACS();								// mute DAC's as early as possible
-	this->Fcrystal = F_crystal;				// store the crystal frequency (MHz)
+void Sabre::begin(uint8_t mode, uint8_t f_clock, uint8_t defaultAttenuation, bool mute)
+{		
+	this->Reg17.All_Mono = mode == TreuMonoMode;		// Set flag, so all DACs can be muted as early as possible	
+	this->sReg10 = 0xCE;								// use default = 8'b11001110
+	muteDACS();											// mute DAC's as early as possible
+	this->Fclock = f_clock;							// store the crystal frequency (MHz)
 	// Set all register defaults
 	setRegisterDefaults();
 	// Set output mode
 	if (this->Reg17.All_Mono)
 	{
-		setOutputMode(AllMonoMode);
+		setOutputMode(TreuMonoMode);
 	}
 	else
 	{
 		setOutputMode(NormalMode);
 	}
 	
-	this->SelectedInput = EEPROM.read(EEPROM_SELECTED_INPUT);
-	this->DefaultAttenuation = EEPROM.read(EEPROM_DEF_ATTNU);
-	this->Attenuation = DefaultAttenuation;
-	
-	if (Helper::firstRun(EEPROM_SABRE_FIRST_RUN))
-	{
-		resetInputNames();
-		applyDefaultSettings();
-		for (uint8_t i = 0; i < NUMBER_OF_INPUTS; i++)
-		{
-			writeInputConfiguration(i);
-		}
-		writeDefaultAttenuation();
-		EEPROM.write(EEPROM_SABRE_FIRST_RUN, FIRST_RUN); // write flag to EEPROM
-	}
-	else
-	{
-		// read all input settings from the EEPROM
-		readInputConfiguration();
-	}
-	
 	// set the volume
-	setVolume(this->Attenuation);
-	// apply the settings for the last known selected input
-	applyInputConfiguration(this->SelectedInput);
-	unMuteDACS();
+	if (defaultAttenuation > 0)
+	{
+		setAttenuation(defaultAttenuation);
+	}	
+	this->Attenuation = defaultAttenuation;
+	
+	// unmute if needed
+	if (!mute)
+	{
+		unMuteDACS();
+	}	
 }
 
 void Sabre::setRegisterDefaults()
@@ -88,53 +73,8 @@ void Sabre::setRegisterDefaults()
 	sReg25 = 0x00;						// Allow all settings (8'b00000000)
 }
 
-void Sabre::applyDefaultSettings()
-{
-	for (byte i = 0; i < NUMBER_OF_INPUTS; i++)
-	{
-		Config[i].AUTO_DEEMPH = useAutoDeemph;
-		Config[i].BIT_MODE = BitMode32;
-		Config[i].DE_EMPHASIS_SELECT = AutoDeemphasis;
-		Config[i].DEEMPH_FILTER = BypassDeemphasisFilter;
-		Config[i].DIFFERENTIAL_MODE = trueDiff;
-		Config[i].DPLL_BANDWIDTH = DPLL_Best;
-		Config[i].DPLL_BW_128X = UseDPLLBandwidthSetting;
-		Config[i].DPLL_BW_DEFAULTS = UseBestDPLLSettings;
-		Config[i].FIR_FILTER = FastRolloff;
-		Config[i].IIR_BANDWIDTH = use50K;
-		Config[i].INPUT_ENABLED = 0x01;
-		Config[i].JITTER_REDUCTION = UseJitterReduction;
-		Config[i].NOTCH_DELAY = NoNotch;
-		Config[i].OSF_FILTER = useOSFfiler;
-		Config[i].QUANTIZER = use6BitsTrue;
-		Config[i].SERIAL_DATA_MODE = I2S;
-		Config[i].SPDIF_ENABLE = useI2SorDSD;
-		Config[i].SPDIF_SOURCE = Data1;
-		//
-		DefaultAttenuation = DEFAULT_ATTNU;
-		Attenuation = DefaultAttenuation;
-	}
-}
 
-void Sabre::resetInputNames()
-{
-	for (byte i = 0; i < NUMBER_OF_INPUTS; i++)
-	{
-		Config[i].INPUT_NAME[0] = 'I';
-		Config[i].INPUT_NAME[1] = 'N';
-		Config[i].INPUT_NAME[2] = 'P';
-		Config[i].INPUT_NAME[3] = 'U';
-		Config[i].INPUT_NAME[4] = 'T';
-		Config[i].INPUT_NAME[5] = ' ';
-		Config[i].INPUT_NAME[6] = (i+49);
-		for (uint8_t x = 7; x < INPUT_NAME_SIZE; x++)
-		{
-			Config[i].INPUT_NAME[x] = ' ';
-		}
-	}
-}
-
-void Sabre::setVolume(uint8_t value)
+void Sabre::setAttenuation(uint8_t value)
 {
 	writeSabreReg(REG0, value);			// set volume of DAC0
 	writeSabreReg(REG1, value);			// set volume of DAC1
@@ -581,7 +521,7 @@ void Sabre::setOutputMode(uint8_t value)
 {
 	switch (value)
 	{
-		case AllMonoMode:				// Reg 17: All 8 DACs are source from one source for true mono
+		case TreuMonoMode:				// Reg 17: All 8 DACs are source from one source for true mono
 		bitSet(sReg17, 0);
 		Reg17.All_Mono = true;
 		break;
@@ -651,7 +591,7 @@ void Sabre::setDPLLbandwidthDefaults(uint8_t value)
 		break;
 	}
 	writeSabreReg(REG25, sReg25);
-	Config[SelectedInput % NUMBER_OF_INPUTS].DPLL_BW_DEFAULTS = value;
+	//Config[SelectedInput % NUMBER_OF_INPUTS].DPLL_BW_DEFAULTS = value;
 }
 
 void Sabre::setDPLLBandwidth128x(uint8_t value)
@@ -710,31 +650,6 @@ void Sabre::setSampleRate()
 	this->SampleRate = calculateSampleRate(getDPLL_NUM());	// calculate sample rate
 };
 
-void Sabre::writeInputConfiguration()
-{
-	writeInputConfiguration(this->SelectedInput);
-}
-
-void Sabre::writeInputConfiguration(uint8_t input)
-{
-	int location = (input) * sizeof(Config[input]);
-	EEPROM_writeAnything(location, Config[input]);	// write the input configuration to the EEPROM
-}
-
-void Sabre::writeSelectedInput()
-{
-	EEPROM.write(EEPROM_SELECTED_INPUT , this->SelectedInput);
-}
-
-void Sabre::writeDefaultAttenuation()
-{
-	EEPROM.write(EEPROM_DEF_ATTNU , this->DefaultAttenuation);
-}
-
-void Sabre::selectInput(uint8_t value)
-{
-	applyInputConfiguration(this->SelectedInput);		// Apply the stored configuration for the input.
-}
 //END PUBLIC FUNCTIONS////////////////////////////////////////////////////
 
 
@@ -790,24 +705,24 @@ unsigned long Sabre::calculateSampleRate(unsigned long DPLL_NUM)
 	unsigned long i;
 	if (Status.SPDIF_Valid)
 	{
-		i = Fcrystal / 5;
+		i = Fclock / 5;
 		DPLL_NUM *= i;
 		DPLL_NUM /= 859;
 	}
 	else
 	{
-		if (Fcrystal==80)
+		if (Fclock==80)
 		{
 			DPLL_NUM/=3436;		// Calculate SR for I2S -80MHz part
 		}
-		else if (Fcrystal==100)
+		else if (Fclock==100)
 		{
 			DPLL_NUM*=4;			// Calculate SR for I2S -100MHz part
 			DPLL_NUM/=10995;		// Calculate SR for I2S -100MHz part
 		}
 		else
 		{
-			i = (64L * 4295L)  / Fcrystal;
+			i = (64L * 4295L)  / Fclock;
 			DPLL_NUM /= i;
 		}
 		
@@ -906,47 +821,5 @@ void Sabre::setDifferentialMode(uint8_t value)
 	}
 	writeSabreReg(REG14, sReg14);		// Reg 14: Write differential mode setting to register
 }
-
-
-
-void Sabre::readInputConfiguration()
-{
-	int location = 0;
-	for (uint8_t i = 0; i < NUMBER_OF_INPUTS; i++)
-	{
-		location += EEPROM_readAnything(location, this->Config[i]);
-	}
-}
-
-void Sabre::applyInputConfiguration(uint8_t input)
-{
-	if (!Mute)
-	{
-		muteDACS();
-	}
-	
-	setSPDIFenable(Config[input].SPDIF_ENABLE);
-	setSerialDataMode(Config[input].SERIAL_DATA_MODE);
-	setBitMode(Config[input].BIT_MODE);
-	setSPDIFsource(Config[input].SPDIF_SOURCE);
-	
-	setDeemphasisFilter(Config[input].DEEMPH_FILTER);
-	setDeEmphasisSelect(Config[input].DE_EMPHASIS_SELECT);
-	setJitterReductionEnable(Config[input].JITTER_REDUCTION);
-	setOSFfilter(Config[input].OSF_FILTER);
-	
-	setFIRrolloffSpeed(Config[input].FIR_FILTER);
-	setIIRbandwidth(Config[input].IIR_BANDWIDTH);
-	setQuantizer(Config[input].QUANTIZER);
-	setDPLLbandwidth(Config[input].DPLL_BANDWIDTH);
-	setDPLLBandwidth128x(Config[input].DPLL_BW_128X);
-	setNotchDelay(Config[input].NOTCH_DELAY);
-	
-	if (Mute)
-	{
-		unMuteDACS();
-	}
-}
-
 
 //END PRIVATE FUNCTIONS///////////////////////////////////////////////////

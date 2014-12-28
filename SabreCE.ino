@@ -7,7 +7,7 @@
 
 #pragma region #DEFINE_DIRECTIVES
 
-#define CHARACTER_OLED
+
 
 #define INCREASE 0x00
 #define DECREASE 0x01
@@ -17,11 +17,11 @@
 #pragma region HEADER_FILE_INCLUSIONS
 
 #include "Sabre.h"
-#include "GUI.h"
+#include "SabreController.h"
 #include "Wire.h"
 #include "EEPROM.h"
 #include "IRremote.h"
-#ifdef CHARACTER_OLED
+#ifdef SabreController::CHARACTER_OLED
 #include "CharacterOLED.h"
 #else
 #include "OLEDFourBit.h"
@@ -52,8 +52,8 @@ const int buttonVolDown = 4;	// pin 4 connects to the volume down button
 
 #pragma region GLOBAL_VARIABLES
 
-Sabre dac;							// dac
-GUI gui(25, 26, 27, 28, 29, 30, 31);// define the pins for the OLED
+//Sabre dac;							// dac
+SabreController controller(25, 26, 27, 28, 29, 30, 31);// define the pins for the OLED
 IRrecv	irrecv(10);					// set the IR receiver pin
 
 decode_results results;				// object for storing the IR decode results
@@ -90,23 +90,15 @@ void initializeButtonPins()
 void setup()
 {
 	//Serial.begin(9600);		// for debugging
-	
 	Wire.begin();			// join the I2C bus
 	
-	dac.begin(false, 100);	// true = dual mono mode | false = stereo mode, Clock frequency (MHz)
+	// Start the dac, user interface and initialize the display	
+	controller.begin(controller.sabreDAC.NormalMode, 100);		// (normal/mono, clock frequency)	
+		
+	irrecv.enableIRIn();		// Start the receiver	
+	initializeButtonPins();		// initialize the pins for the buttons	
 	
-	irrecv.enableIRIn();		// Start the receiver
-	
-	initializeButtonPins();		// initialize the pins for the buttons
-	
-	RTC_DS1307::begin();
-	
-	gui.begin();			// Start the user interface + initialize the display
-	gui.setSabreDac(&dac);
-	
-	dac.setVolume(gui.MainMenuSettings.defaultAttnu);
-	
-	gui.printHomeScreen(dac.SelectedInput, dac.Attenuation);
+	controller.printHomeScreen(controller.SelectedInput, controller.sabreDAC.Attenuation);
 	
 	DebounceMillis = millis();
 }
@@ -160,7 +152,10 @@ void loop()
 			handlePlayPause();			
 			break;
 			default:
-			lastKey = 0;	// probably received a code from another remote control, so reset the last keyCode value to prevent any unwanted operation
+			if (lastKey != KEY_CENTER && controller.GUI_State != SabreController::HomeScreen)
+			{				
+				lastKey = 0;	// probably received a code from another remote control, so reset the last keyCode value to prevent any unwanted operation
+			}			
 			break;
 		}
 		delay(remoteDelay);
@@ -225,30 +220,33 @@ void loop()
 	// print status every StatusUpdateInterval (ms) and only when the home screen is showing
 	if (millis() - StatusMillis >= StatusUpdateInterval)
 	{
-		if (gui.GUI_State == GUI::HomeScreen && gui.display())
-		{
-			dac.getStatus();
-			dac.setSampleRate();	// read the sr from the DAC's register and store it
-			gui.setSabreDac(&dac);
-			gui.printSampleRate(0, 0);
-			gui.printInputFormat(4, 3);
+		if (controller.GUI_State == SabreController::HomeScreen 
+			&& controller.display())
+		{		
+			controller.sabreDAC.getStatus();
+			controller.sabreDAC.getSampleRate();
+			controller.printSampleRate(0, 0);
+			controller.printInputFormat(4, 3);
 			
-			if (gui.MainMenuSettings.displayAutoOff && millis() - AutoMillis >= (gui.MainMenuSettings.displayAutoOffTime * 1000))
+			if (controller.MainMenuSettings.displayAutoOff 
+				&& millis() - AutoMillis >= (controller.MainMenuSettings.displayAutoOffTime * 1000))
 			{
 				toggleDisplay();
 				lastKey = 0;	// reset the last keyCode value to prevent unwanted operation
 				AutoMillis = millis();
 			}
-			else if (gui.MainMenuSettings.showAutoClock && millis() - AutoMillis >= (gui.MainMenuSettings.showAutoClockTime * 1000))
+			else if (controller.MainMenuSettings.showAutoClock 
+				&& millis() - AutoMillis >= (controller.MainMenuSettings.showAutoClockTime * 1000))
 			{
 				toggleDisplay();
-				gui.printLargeTime();
+				controller.printLargeTime();
 				AutoMillis = millis();
 			}
 		}
-		else if (gui.GUI_State == GUI::HomeScreen && !gui.MainMenuSettings.displayAutoOff && !gui.display())
+		else if (controller.GUI_State == SabreController::HomeScreen 
+			&& !controller.MainMenuSettings.displayAutoOff && !controller.display())
 		{
-			gui.printLargeTime();
+			controller.printLargeTime();
 		}
 		
 		StatusMillis = millis();
@@ -263,8 +261,8 @@ void loop()
 // toggles between display on/off
 void toggleDisplay()
 {
-	gui.setSabreDac(&dac);
-	gui.toggleDisplay();
+	
+	controller.toggleDisplay();
 }
 
 #pragma endregion DISPLAY_METHODS
@@ -291,58 +289,58 @@ void setIRcode()
 
 void handleKeyUp()
 {
-	switch (gui.GUI_State)
+	switch (controller.GUI_State)
 	{
-		case GUI::HomeScreen:
+		case SabreController::HomeScreen:
 		setVolume(INCREASE);
 		break;
-		case GUI::InputSettingsMenu:
-		if (gui.EditMode())
+		case SabreController::InputSettingsMenu:
+		if (controller.EditMode())
 		{
-			gui.printNextChar();	// change selected character of the input name
+			controller.printNextChar();	// change selected character of the input name
 		}
 		else
 		{
-			gui.printSelectedInputSettings(PREVIOUS, gui.SettingsCode());
+			controller.printSelectedInputSettings(PREVIOUS, controller.SettingsCode());
 		}
 		break;
-		case GUI::MainMenu:
-		if (!gui.EditMode())
+		case SabreController::MainMenu:
+		if (!controller.EditMode())
 		{
-			gui.printSelectedMainMenuSetting(PREVIOUS);
+			controller.printSelectedMainMenuSetting(PREVIOUS);
 		}
 		else
 		{
-			if (gui.SelectedMenuSetting == GUI::AdjustTime)
+			if (controller.SelectedMenuSetting == SabreController::AdjustTime)
 			{
-				if (gui.CursorPosition == 1)
+				if (controller.CursorPosition == 1)
 				{
-					gui.setAndPrintHour(NEXT);
+					controller.setAndPrintHour(NEXT);
 				}
 				else
 				{
-					gui.setAndPrintMinute(NEXT);
+					controller.setAndPrintMinute(NEXT);
 				}
 			}
 			else
 			{
-				if (gui.CursorPosition == 1)
+				if (controller.CursorPosition == 1)
 				{
-					gui.setAndPrintDay(NEXT);
+					controller.setAndPrintDay(NEXT);
 				}
-				else if (gui.CursorPosition == 2)
+				else if (controller.CursorPosition == 2)
 				{
-					gui.setAndPrintMonth(NEXT);
+					controller.setAndPrintMonth(NEXT);
 				}
 				else
 				{
-					gui.setAndPrintYear(NEXT);
+					controller.setAndPrintYear(NEXT);
 				}
 			}
 		}
 		break;
 	}
-	if (!gui.display())
+	if (!controller.display())
 	{
 		toggleDisplay();
 	}
@@ -351,58 +349,58 @@ void handleKeyUp()
 
 void handleKeyDown()
 {
-	switch (gui.GUI_State)
+	switch (controller.GUI_State)
 	{
-		case GUI::HomeScreen:
+		case SabreController::HomeScreen:
 		setVolume(DECREASE);
 		break;
-		case GUI::InputSettingsMenu:
-		if (gui.EditMode())
+		case SabreController::InputSettingsMenu:
+		if (controller.EditMode())
 		{
-			gui.PrintPreviousChar(); // change selected character of the input name
+			controller.PrintPreviousChar(); // change selected character of the input name
 		}
 		else
 		{
-			gui.printSelectedInputSettings(NEXT, gui.SettingsCode());
+			controller.printSelectedInputSettings(NEXT, controller.SettingsCode());
 		}
 		break;
-		case GUI::MainMenu:
-		if (!gui.EditMode())
+		case SabreController::MainMenu:
+		if (!controller.EditMode())
 		{
-			gui.printSelectedMainMenuSetting(NEXT);
+			controller.printSelectedMainMenuSetting(NEXT);
 		}
 		else
 		{
-			if (gui.SelectedMenuSetting == GUI::AdjustTime)
+			if (controller.SelectedMenuSetting == SabreController::AdjustTime)
 			{
-				if (gui.CursorPosition == 1)
+				if (controller.CursorPosition == 1)
 				{
-					gui.setAndPrintHour(PREVIOUS);
+					controller.setAndPrintHour(PREVIOUS);
 				}
 				else
 				{
-					gui.setAndPrintMinute(PREVIOUS);
+					controller.setAndPrintMinute(PREVIOUS);
 				}
 			}
 			else
 			{
-				if (gui.CursorPosition == 1)
+				if (controller.CursorPosition == 1)
 				{
-					gui.setAndPrintDay(PREVIOUS);
+					controller.setAndPrintDay(PREVIOUS);
 				}
-				else if (gui.CursorPosition == 2)
+				else if (controller.CursorPosition == 2)
 				{
-					gui.setAndPrintMonth(PREVIOUS);
+					controller.setAndPrintMonth(PREVIOUS);
 				}
 				else
 				{
-					gui.setAndPrintYear(PREVIOUS);
+					controller.setAndPrintYear(PREVIOUS);
 				}
 			}
 		}
 		break;
 	}
-	if (!gui.display())
+	if (!controller.display())
 	{
 		toggleDisplay();
 	}
@@ -411,13 +409,13 @@ void handleKeyDown()
 
 void handleKeyLeft()
 {
-	switch (gui.GUI_State)
+	switch (controller.GUI_State)
 	{
-		case GUI::MainMenu:
+		case SabreController::MainMenu:
 		changeMainMenuSettings(PREVIOUS);
 		SetLastKeyByMainMenu();
 		break;
-		case GUI::InputSettingsMenu:
+		case SabreController::InputSettingsMenu:
 		changeInputSetting(PREVIOUS);
 		lastKey = 0;
 		break;
@@ -426,7 +424,7 @@ void handleKeyLeft()
 		lastKey = 0;			// reset the last keyCode value to prevent any unwanted operation
 		break;
 	}
-	if (!gui.display())
+	if (!controller.display())
 	{
 		toggleDisplay();
 	}
@@ -435,13 +433,13 @@ void handleKeyLeft()
 
 void handleKeyRight()
 {
-	switch (gui.GUI_State)
+	switch (controller.GUI_State)
 	{
-		case GUI::MainMenu:
+		case SabreController::MainMenu:
 		changeMainMenuSettings(NEXT);
 		SetLastKeyByMainMenu();
 		break;
-		case GUI::InputSettingsMenu:
+		case SabreController::InputSettingsMenu:
 		changeInputSetting(NEXT);
 		lastKey = 0;			// reset the last keyCode value to prevent any unwanted operation
 		break;
@@ -450,7 +448,7 @@ void handleKeyRight()
 		lastKey = 0;			// reset the last keyCode value to prevent any unwanted operation
 		break;
 	}
-	if (!gui.display())
+	if (!controller.display())
 	{
 		toggleDisplay();
 	}
@@ -459,51 +457,50 @@ void handleKeyRight()
 
 void handleKeyCenter()
 {	
-	switch (gui.GUI_State)
+	switch (controller.GUI_State)
 	{
-		case GUI::InputSettingsMenu:
+		case SabreController::InputSettingsMenu:
 		SaveInputSettings();
-		gui.printHomeScreen(dac.SelectedInput, dac.Attenuation);
+		controller.printHomeScreen(controller.SelectedInput, controller.sabreDAC.Attenuation);
+		lastKey = 0;	// reset the last keyCode value to prevent unwanted operation
 		break;
-		case GUI::MainMenu:
+		case SabreController::MainMenu:
 		// save changed settings from the main menu and go to the input settings menu
-		SaveMenuSettings();
-		gui.setSabreDac(&dac);
-		gui.printInputSettingsMenu(dac.SelectedInput);
+		SaveMenuSettings();		
+		controller.printInputSettingsMenu(controller.SelectedInput);
+		lastKey = 0;	// reset the last keyCode value to prevent unwanted operation
 		break;
 		default:
 		CenterKeyCount++; // count successive received key codes of the center key
 		// Enter the input setting menu only after the user pressed the center key for CenterKeyDuration time
 		if (CenterKeyCount * remoteDelay > CenterKeyDuration)
 		{
-			CenterKeyCount = 0;	// reset counter
-			gui.setSabreDac(&dac);
-			gui.printInputSettingsMenu(dac.SelectedInput);
+			CenterKeyCount = 0;	// reset counter			
+			controller.printInputSettingsMenu(controller.SelectedInput);
+			lastKey = 0;	// reset the last keyCode value to prevent unwanted operation
 		}
-		break;
-		lastKey = 0;	// reset the last keyCode value to prevent unwanted operation
-		AutoMillis = millis();
+		break;		
 	}
-	
+	AutoMillis = millis();
 }
 
 void handleKeyMenu()
 {
-	switch (gui.GUI_State)
+	switch (controller.GUI_State)
 	{
-		case GUI::MainMenu:
+		case SabreController::MainMenu:
 		// Save settings and return to the HomeScreen
 		SaveMenuSettings();
-		gui.printHomeScreen(dac.SelectedInput, dac.Attenuation);
-		gui.SelectedMenuSetting = 0;	// reset to default
+		controller.printHomeScreen(controller.SelectedInput, controller.sabreDAC.Attenuation);
+		controller.SelectedMenuSetting = 0;	// reset to default
 		break;
-		case GUI::InputSettingsMenu:
+		case SabreController::InputSettingsMenu:
 		SaveInputSettings();
-		gui.printMainMenu();
+		controller.printMainMenu();
 		break;
 		default:
 		// Enter the Main Menu
-		gui.printMainMenu();
+		controller.printMainMenu();
 		break;
 	}
 	lastKey = 0;	// reset the last keyCode value to prevent unwanted operation
@@ -512,25 +509,24 @@ void handleKeyMenu()
 
 void handlePlayPause() // mute
 {
-	if (dac.Mute)
+	if (controller.sabreDAC.Mute)
 	{		
-		dac.unMuteDACS();
-		if (gui.GUI_State == GUI::HomeScreen)
+		controller.sabreDAC.unMuteDACS();
+		if (controller.GUI_State == SabreController::HomeScreen)
 		{
-			gui.printLargeAttenuation(dac.Attenuation, LargeAttnuStartPos);
+			controller.printLargeAttenuation(controller.sabreDAC.Attenuation, LargeAttnuStartPos);
 		}	
 	}
 	else
 	{
-		dac.muteDACS();
-		if (gui.GUI_State == GUI::HomeScreen)
+		controller.sabreDAC.muteDACS();
+		if (controller.GUI_State == SabreController::HomeScreen)
 		{
-			gui.printLargeMuteSymbol(LargeAttnuStartPos);
+			controller.printLargeMuteSymbol(LargeAttnuStartPos);
 		}
-	}
-	gui.setSabreDac(&dac);
+	}	
 	lastKey = 0;			// reset the last keyCode value to prevent any unwanted operation
-	if (!gui.display())
+	if (!controller.display())
 	{
 		toggleDisplay();
 	}
@@ -546,125 +542,110 @@ void setVolume(byte value)
 {
 	if (value == INCREASE)
 	{
-		if (dac.Attenuation > 0)
+		if (controller.sabreDAC.Attenuation > 0)
 		{
-			dac.setVolume(dac.Attenuation -= 1);
+			controller.sabreDAC.setAttenuation(controller.sabreDAC.Attenuation -= 1);
 		}
 	}
 	else
 	{
-		if (dac.Attenuation < 99)
+		if (controller.sabreDAC.Attenuation < 99)
 		{
-			dac.setVolume(dac.Attenuation += 1);
+			controller.sabreDAC.setAttenuation(controller.sabreDAC.Attenuation += 1);
 		}
 	}
-	gui.printLargeAttenuation(dac.Attenuation, LargeAttnuStartPos);
+	controller.printLargeAttenuation(controller.sabreDAC.Attenuation, LargeAttnuStartPos);
 }
 
 void setInput(byte value)
 {
-	Helper::SetPointerValue(value, &dac.SelectedInput, NUMBER_OF_INPUTS -1, 0);
-	dac.selectInput(dac.SelectedInput);
-	gui.setSabreDac(&dac);
-	gui.printInputName(4, 2);
-	gui.printLargeInput(dac.SelectedInput, 0);
-	dac.writeSelectedInput();
+	Helper::SetPointerValue(value, &controller.SelectedInput, NUMBER_OF_INPUTS -1, 0);
+	controller.selectInput(controller.SelectedInput);	
+	controller.printInputName(4, 2);
+	controller.printLargeInput(controller.SelectedInput, 0);
+	controller.writeSelectedInput();
 }
 
 void changeInputSetting(int value)
 {
-	switch (gui.SelectedInputSetting)
+	switch (controller.SelectedInputSetting)
 	{
-		case GUI::InputName:
-		gui.setInputNameCursor(value);
+		case SabreController::InputName:
+		controller.setInputNameCursor(value);
 		lastKey = 0;
 		break;
-		case GUI::FirFilter:
-		Helper::SetPointerValue(value, &dac.Config[dac.SelectedInput].FIR_FILTER, dac.SlowRolloff, 0);
-		dac.setFIRrolloffSpeed(dac.Config[dac.SelectedInput].FIR_FILTER);
-		gui.setSabreDac(&dac);
-		gui.printFIRsetting(1, 1);
+		case SabreController::FirFilter:
+		Helper::SetPointerValue(value, &controller.Config[controller.SelectedInput].FIR_FILTER, controller.sabreDAC.SlowRolloff, 0);
+		controller.sabreDAC.setFIRrolloffSpeed(controller.Config[controller.SelectedInput].FIR_FILTER);		
+		controller.printFIRsetting(1, 1);
 		break;
-		case GUI::IIRBandwidth:
-		Helper::SetPointerValue(value, &dac.Config[dac.SelectedInput].IIR_BANDWIDTH, dac.use70K, 0);
-		dac.setIIRbandwidth(dac.Config[dac.SelectedInput].IIR_BANDWIDTH);
-		gui.setSabreDac(&dac);
-		gui.printIIRsetting(1, 1);
+		case SabreController::IIRBandwidth:
+		Helper::SetPointerValue(value, &controller.Config[controller.SelectedInput].IIR_BANDWIDTH, controller.sabreDAC.use70K, 0);
+		controller.sabreDAC.setIIRbandwidth(controller.Config[controller.SelectedInput].IIR_BANDWIDTH);		
+		controller.printIIRsetting(1, 1);
 		break;
-		case GUI::NotchDelay:
-		Helper::SetPointerValue(value, &dac.Config[dac.SelectedInput].NOTCH_DELAY, dac.MCLK64, 0);
-		dac.setNotchDelay(dac.Config[dac.SelectedInput].NOTCH_DELAY);
-		gui.setSabreDac(&dac);
-		gui.printNotchSetting(1, 1);
+		case SabreController::NotchDelay:
+		Helper::SetPointerValue(value, &controller.Config[controller.SelectedInput].NOTCH_DELAY, controller.sabreDAC.MCLK64, 0);
+		controller.sabreDAC.setNotchDelay(controller.Config[controller.SelectedInput].NOTCH_DELAY);		
+		controller.printNotchSetting(1, 1);
 		break;
-		case GUI::Quantizer:
-		Helper::SetPointerValue(value, &dac.Config[dac.SelectedInput].QUANTIZER, dac.use9BitsPseudo, 0);
-		dac.setQuantizer(dac.Config[dac.SelectedInput].QUANTIZER);
-		gui.setSabreDac(&dac);
-		gui.printQuantizerSetting(1, 1);
+		case SabreController::Quantizer:
+		Helper::SetPointerValue(value, &controller.Config[controller.SelectedInput].QUANTIZER, controller.sabreDAC.use9BitsPseudo, 0);
+		controller.sabreDAC.setQuantizer(controller.Config[controller.SelectedInput].QUANTIZER);		
+		controller.printQuantizerSetting(1, 1);
 		break;
-		case GUI::DpllBandwidth:
-		Helper::SetPointerValue(value, &dac.Config[dac.SelectedInput].DPLL_BANDWIDTH, dac.DPLL_Best, 0);
-		dac.setDPLLbandwidth(dac.Config[dac.SelectedInput].DPLL_BANDWIDTH);
-		gui.setSabreDac(&dac);
-		gui.printDPLLbandwidthSetting(1, 1);
+		case SabreController::DpllBandwidth:
+		Helper::SetPointerValue(value, &controller.Config[controller.SelectedInput].DPLL_BANDWIDTH, controller.sabreDAC.DPLL_Best, 0);
+		controller.sabreDAC.setDPLLbandwidth(controller.Config[controller.SelectedInput].DPLL_BANDWIDTH);		
+		controller.printDPLLbandwidthSetting(1, 1);
 		break;
-		case GUI::DpllBw128:
-		Helper::SetPointerValue(value, &dac.Config[dac.SelectedInput].DPLL_BW_128X, dac.MultiplyDPLLBandwidthBy128, 0);
-		dac.setDPLLBandwidth128x(dac.Config[dac.SelectedInput].DPLL_BW_128X);
-		gui.setSabreDac(&dac);
-		gui.printDPLLmultiplierSetting(1, 1);
+		case SabreController::DpllBw128:
+		Helper::SetPointerValue(value, &controller.Config[controller.SelectedInput].DPLL_BW_128X, controller.sabreDAC.MultiplyDPLLBandwidthBy128, 0);
+		controller.sabreDAC.setDPLLBandwidth128x(controller.Config[controller.SelectedInput].DPLL_BW_128X);		
+		controller.printDPLLmultiplierSetting(1, 1);
 		break;
-		case GUI::OverSamplingFilter:
-		Helper::SetPointerValue(value, &dac.Config[dac.SelectedInput].OSF_FILTER, dac.bypassOSFfilter, 0);
-		dac.setOSFfilter(dac.Config[dac.SelectedInput].OSF_FILTER);
-		gui.setSabreDac(&dac);
-		gui.printOSFfilterSetting(1, 1);
+		case SabreController::OverSamplingFilter:
+		Helper::SetPointerValue(value, &controller.Config[controller.SelectedInput].OSF_FILTER, controller.sabreDAC.bypassOSFfilter, 0);
+		controller.sabreDAC.setOSFfilter(controller.Config[controller.SelectedInput].OSF_FILTER);		
+		controller.printOSFfilterSetting(1, 1);
 		break;
-		case GUI::InputFormat:
-		Helper::SetPointerValue(value, &dac.Config[dac.SelectedInput].SPDIF_ENABLE, dac.useSPDIF, 0);
-		dac.setSPDIFenable(dac.Config[dac.SelectedInput].SPDIF_ENABLE);
-		gui.setSabreDac(&dac);
-		gui.printSPDIFenableSetting(1, 1);
+		case SabreController::InputFormat:
+		Helper::SetPointerValue(value, &controller.Config[controller.SelectedInput].SPDIF_ENABLE, controller.sabreDAC.useSPDIF, 0);
+		controller.sabreDAC.setSPDIFenable(controller.Config[controller.SelectedInput].SPDIF_ENABLE);		
+		controller.printSPDIFenableSetting(1, 1);
 		break;
-		case GUI::SerialDataMode:
-		Helper::SetPointerValue(value, &dac.Config[dac.SelectedInput].SERIAL_DATA_MODE, dac.RJ, 0);
-		dac.setSerialDataMode(dac.Config[dac.SelectedInput].SERIAL_DATA_MODE);
-		gui.setSabreDac(&dac);
-		gui.printSerialDataModeSetting(1, 1);
+		case SabreController::SerialDataMode:
+		Helper::SetPointerValue(value, &controller.Config[controller.SelectedInput].SERIAL_DATA_MODE, controller.sabreDAC.RJ, 0);
+		controller.sabreDAC.setSerialDataMode(controller.Config[controller.SelectedInput].SERIAL_DATA_MODE);		
+		controller.printSerialDataModeSetting(1, 1);
 		break;
-		case GUI::SpdifSource:
-		Helper::SetPointerValue(value, &dac.Config[dac.SelectedInput].SPDIF_SOURCE, dac.Data8, 0);
-		dac.setSPDIFsource(dac.Config[dac.SelectedInput].SPDIF_SOURCE);
-		gui.setSabreDac(&dac);
-		gui.printSPDIFsourceSetting(1, 1);
+		case SabreController::SpdifSource:
+		Helper::SetPointerValue(value, &controller.Config[controller.SelectedInput].SPDIF_SOURCE, controller.sabreDAC.Data8, 0);
+		controller.sabreDAC.setSPDIFsource(controller.Config[controller.SelectedInput].SPDIF_SOURCE);		
+		controller.printSPDIFsourceSetting(1, 1);
 		break;
-		case GUI::BitMode:
-		Helper::SetPointerValue(value, &dac.Config[dac.SelectedInput].BIT_MODE, dac.BitMode32, 0);
-		dac.setBitMode(dac.Config[dac.SelectedInput].BIT_MODE);
-		gui.setSabreDac(&dac);
-		gui.printBitmodeSetting(1, 1);
+		case SabreController::BitMode:
+		Helper::SetPointerValue(value, &controller.Config[controller.SelectedInput].BIT_MODE, controller.sabreDAC.BitMode32, 0);
+		controller.sabreDAC.setBitMode(controller.Config[controller.SelectedInput].BIT_MODE);		
+		controller.printBitmodeSetting(1, 1);
 		break;
-		case GUI::AutoDeemphasis:
-		Helper::SetPointerValue(value, &dac.Config[dac.SelectedInput].DE_EMPHASIS_SELECT, dac.f48kHz, 0);
-		dac.setDeEmphasisSelect(dac.Config[dac.SelectedInput].DE_EMPHASIS_SELECT);
-		gui.setSabreDac(&dac);
-		gui.printDeemphFilterSetting(1, 1);
+		case SabreController::AutoDeemphasis:
+		Helper::SetPointerValue(value, &controller.Config[controller.SelectedInput].DE_EMPHASIS_SELECT, controller.sabreDAC.f48kHz, 0);
+		controller.sabreDAC.setDeEmphasisSelect(controller.Config[controller.SelectedInput].DE_EMPHASIS_SELECT);		
+		controller.printDeemphFilterSetting(1, 1);
 		break;
 	}
 }
 
 void SaveInputSettings()
 {
-	if (gui.EditMode())
+	if (controller.EditMode())
 	{
 		// stop edit mode and timer
-		gui.stopTimer();
-		// copy the edited input name from the gui class
-		dac.Config[dac.SelectedInput] = gui.sabreDAC.Config[dac.SelectedInput];
+		controller.stopTimer();		
 	}
-	dac.writeInputConfiguration();	// write settings to the EEPROM
-	gui.SelectedInputSetting = 0;	// reset the Setting variable so the next time the menu starts at the first setting
+	controller.writeInputConfiguration();	// write settings to the EEPROM
+	controller.SelectedInputSetting = 0;	// reset the Setting variable so the next time the menu starts at the first setting
 }
 
 
@@ -674,33 +655,33 @@ void SaveInputSettings()
 
 void changeMainMenuSettings(uint8_t value)
 {
-	switch (gui.SelectedMenuSetting)
+	switch (controller.SelectedMenuSetting)
 	{
-		case GUI::DisplayAutoOff:
-		Helper::SetPointerValue(value, &gui.MainMenuSettings.displayAutoOff, 1, 0);
-		gui.printDisplayAutoOffSetting(2, 1);
+		case SabreController::DisplayAutoOff:
+		Helper::SetPointerValue(value, &controller.MainMenuSettings.displayAutoOff, 1, 0);
+		controller.printDisplayAutoOffSetting(2, 1);
 		break;
-		case GUI::DisplayAutoOffTime:
-		Helper::SetPointerValue(value, &gui.MainMenuSettings.displayAutoOffTime, MAX_TIME, 0);
-		gui.printDisplayAutoOffTimeSetting(2, 1);
+		case SabreController::DisplayAutoOffTime:
+		Helper::SetPointerValue(value, &controller.MainMenuSettings.displayAutoOffTime, MAX_TIME, 0);
+		controller.printDisplayAutoOffTimeSetting(2, 1);
 		break;
-		case GUI::DefaultAttnu:
-		Helper::SetPointerValue(value, &gui.MainMenuSettings.defaultAttnu, MAX_ATTNU, 0);
-		gui.printDefaultAttnuSetting(2, 1);
+		case SabreController::DefaultAttnu:
+		Helper::SetPointerValue(value, &controller.MainMenuSettings.defaultAttenuation, MAX_ATTNU, 0);
+		controller.printDefaultAttnuSetting(2, 1);
 		break;
-		case GUI::ShowAutoClock:
-		Helper::SetPointerValue(value, &gui.MainMenuSettings.showAutoClock, 1, 0);
-		gui.printShowAutoClockSetting(2, 1);
+		case SabreController::ShowAutoClock:
+		Helper::SetPointerValue(value, &controller.MainMenuSettings.showAutoClock, 1, 0);
+		controller.printShowAutoClockSetting(2, 1);
 		break;
-		case GUI::ShowAutoClockTime:
-		Helper::SetPointerValue(value, &gui.MainMenuSettings.showAutoClockTime, MAX_TIME, 0);
-		gui.printAutoClockTimeSetting(2, 1);
+		case SabreController::ShowAutoClockTime:
+		Helper::SetPointerValue(value, &controller.MainMenuSettings.showAutoClockTime, MAX_TIME, 0);
+		controller.printAutoClockTimeSetting(2, 1);
 		break;
-		case GUI::AdjustTime:
-		gui.setTimeCursor(value);
+		case SabreController::AdjustTime:
+		controller.setTimeCursor(value);
 		break;
-		case GUI::AdjustDate:
-		gui.setDateCursor(value);
+		case SabreController::AdjustDate:
+		controller.setDateCursor(value);
 		break;
 		default:
 		// do nothing
@@ -711,22 +692,21 @@ void changeMainMenuSettings(uint8_t value)
 // sets the lastKey variable to 0 if needed
 void SetLastKeyByMainMenu()
 {
-	if (gui.SelectedMenuSetting != gui.DisplayAutoOffTime && gui.SelectedMenuSetting != gui.DefaultAttnu) // && gui.SelectedMenuSetting != gui.ShowAutoClockTime)
+	if (controller.SelectedMenuSetting != controller.DisplayAutoOffTime && controller.SelectedMenuSetting != controller.DefaultAttnu) // && gui.SelectedMenuSetting != gui.ShowAutoClockTime)
 	{
 		lastKey = 0;			// reset the last keyCode value to prevent any unwanted operation
 	}
 }
 
-
 void SaveMenuSettings()
 {
-	if (gui.EditMode())
+	if (controller.EditMode())
 	{
-		gui.stopTimer();
-		gui.saveDateTime();
+		controller.stopTimer();
+		controller.saveDateTime();
 	}
-	gui.writeMainMenuSettings();
-	gui.SelectedMenuSetting = 0;
+	controller.writeMainMenuSettings();
+	controller.SelectedMenuSetting = 0;
 }
 
 #pragma endregion MAIN_MENU_SETTING_METHODS
@@ -738,40 +718,40 @@ void SaveMenuSettings()
 // timer for blinking the cursor
 ISR(TIMER1_COMPA_vect)	//timer1 interrupt 1Hz toggles the cursor
 {	
-	if (gui.GUI_State == GUI::InputSettingsMenu)
+	if (controller.GUI_State == SabreController::InputSettingsMenu)
 	{
-		gui.setInputNameCursor(0); // set cursor back to correct position
+		controller.setInputNameCursor(0); // set cursor back to correct position
 		if (Toggle)
 		{
-			gui.OLED.write(0x5F);
+			controller.OLED.write(0x5F);
 		}
 		else
 		{
-			gui.printSelectedChar();
+			controller.printSelectedChar();
 		}
 	}
-	else if (gui.GUI_State == GUI::MainMenu)
+	else if (controller.GUI_State == SabreController::MainMenu)
 	{
 		if (Toggle)
 		{
-			if (gui.SelectedMenuSetting == GUI::AdjustTime)
+			if (controller.SelectedMenuSetting == SabreController::AdjustTime)
 			{
-				gui.setTimeCursor(255);
+				controller.setTimeCursor(255);
 			}
 			else
 			{
-				gui.setDateCursor(255);
+				controller.setDateCursor(255);
 			}
 		}
 		else
 		{
-			if (gui.SelectedMenuSetting == GUI::AdjustTime)
+			if (controller.SelectedMenuSetting == SabreController::AdjustTime)
 			{
-				gui.setTimeCursor(0);
+				controller.setTimeCursor(0);
 			}
 			else
 			{
-				gui.setDateCursor(0);
+				controller.setDateCursor(0);
 			}
 		}
 	}
