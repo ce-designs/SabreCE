@@ -5,7 +5,7 @@ For controlling a Sabre DAC with the CE644 development board v1.3 in combination
 
 This repository contains:
   - A Sabre library for controling a ES9018 DAC from ESS.
-  - A GUI library for displaying DAC settings, using a character OLED.
+  - A SabreController library for displaying DAC settings, using a character OLED.
       (This library is developed to be used with the Sabre library)
   - A modified version of Ken shirrif's IR remote library.
   - A modified version of Elco Jacob's OLEDfourbit library for interfacing a Newhaven OLED display (Rev.A). (Remove this         library when using a Rev.C display)
