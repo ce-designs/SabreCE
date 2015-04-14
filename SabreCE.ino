@@ -278,8 +278,15 @@ void setIRcode()
 	}
 	else
 	{
-		IRcode = (results.value >> 8) & 0xff;
-		IRcode = (IRcode << 1) & 0xff;
+		if (results.value >> 16 == PRE_DATA) // IR code received from a Apple remote
+		{
+			IRcode = (results.value >> 8) & 0xff;
+			IRcode = (IRcode << 1) & 0xff;
+		}
+		else // IR code received from another remote, so set to 0 to abort any further operation
+		{
+			IRcode = 0
+		}		
 	}
 }
 

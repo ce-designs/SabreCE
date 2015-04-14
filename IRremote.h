@@ -52,7 +52,8 @@ public:
 
 
 
-// Key codes for Apple remotes (NEC) 
+// Pre-data and Key codes for Apple remotes (NEC) 
+#define PRE_DATA 0x77E1
 // these are the first 7 bits of the third byte
 #define REPEAT 0xFFFFFFFF
 #define KEY_UP 0xA0
